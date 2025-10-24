@@ -1,0 +1,52 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+
+  // ✅ Post와의 역참조(반대쪽) 필드 추가
+  posts     Post[]
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  title     String
+  content   String?
+  published Boolean  @default(false)
+  authorId  String
+
+  // ✅ User와의 관계 (authorId 외래키)
+  author    User     @relation(fields: [authorId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model SurveyResponse {
+  id            String   @id @default(cuid())
+  name          String
+  affiliation   String
+  job           String
+  years         Int
+  round         Int
+  questions     Json     // 질문과 답변을 JSON으로 저장
+  savedAt       DateTime @default(now())
+  
+  @@index([name, round])
+}
+
+

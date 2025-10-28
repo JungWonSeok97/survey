@@ -59,6 +59,8 @@ export async function POST(request: NextRequest) {
       saved_at: new Date().toISOString(),
     };
 
+    console.log('Survey data to save:', surveyData);
+
     const { error, data: insertedData } = await supabase
       .from('survey_responses')
       .insert([surveyData])
@@ -66,12 +68,15 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Supabase insert error:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
       console.error('Error details:', JSON.stringify(error, null, 2));
       return NextResponse.json(
         { 
           success: false, 
           message: '데이터베이스 저장 중 오류가 발생했습니다.',
           error: error.message,
+          code: error.code,
           details: error
         },
         { status: 500 }

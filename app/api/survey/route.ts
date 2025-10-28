@@ -74,10 +74,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           success: false, 
-          message: '데이터베이스 저장 중 오류가 발생했습니다.',
+          message: `데이터베이스 저장 중 오류가 발생했습니다. ${error.message}`,
           error: error.message,
           code: error.code,
-          details: error
+          hint: error.hint || null,
+          details: error.details || null
         },
         { status: 500 }
       );

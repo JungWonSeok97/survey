@@ -37,14 +37,32 @@ model Post {
 }
 
 model SurveyResponse {
-  id            String   @id @default(cuid())
-  name          String
-  affiliation   String
-  job           String
-  years         Int
-  round         Int
-  questions     Json     // 질문과 답변을 JSON으로 저장
-  savedAt       DateTime @default(now())
+  id                    String   @id @default(cuid())
+  name                  String
+  affiliation           String
+  job                   String
+  years                 Int
+  round                 Int
+  questions             Json     // 질문과 답변을 JSON으로 저장
+  savedAt               DateTime @default(now())
+  
+  // 새로 추가된 필드들
+  employeeId            String   // 사번
+  position              String   // 직급 (예: 운전3급, 토목4급)
+  department            String   // 소속 (예: OO본부 OO처)
+  gender                String   // 성별
+  dateOfBirth           String   // 생년월일
+  officePhone           String   // 사무실 연락처
+  companyEmail          String   // 회사 메일
+  railroadCertification String   // 철도 관련 자격증 보유 여부
+  jobEducation          String   // 직무교육이수 여부
+  healthCheckDate       String   // 건강검진 일시
+  bodyTemperature       String   // 건강검진시 체온
+  systolicBP            String   // 건강검진시 수축기 혈압
+  pulse                 String   // 건강검진시 맥박
+  workType              String   // 근무유형
+  workTime              String   // 출근/퇴근일시
+  employeeCardNumber    String   // 사원증 출입증 일련번호
   
   @@index([name, round])
 }

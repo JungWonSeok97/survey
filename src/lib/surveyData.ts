@@ -112,6 +112,7 @@ export const ALL_OPTION_LISTS = {
 export const SURVEY_DATA = [
   {
     id: 1,
+    psf: "피로도",
     text: "1. 다음의 조건이라고 가정했을 때, 귀하가 느끼는 작업 부하 수준은 어느 정도에 해당합니까?",
     condition_keys: ['work', 'task', 'sleep', 'availtime', 'shift', 'rotation'],
     condition_labels: {
@@ -128,6 +129,7 @@ export const SURVEY_DATA = [
   },
   {
     id: 2,
+    psf: "장비/기술",
     text: "2. 다음의 조건이라고 가정했을 때, 귀하가 느끼는 장비의 품질(성능, 상태, 적합도 등)수준은 어느 정도입니까?",
     condition_keys: ['eq_avail', 'eq_appro', 'eq_support', 'eq_usability', 'eq_procedure', 'eq_connectivity', 'eq_maintenance'],
     condition_labels: {
@@ -145,6 +147,7 @@ export const SURVEY_DATA = [
   },
   {
     id: 3,
+    psf: "절차/문서",
     text: "3. 다음의 조건이라고 가정했을 때, 귀하가 느끼는 절차서의 품질 수준은 어느 정도입니까?",
     condition_keys: ['pro_availability', 'pro_complexity', 'pro_clarity', 'pro_appropriateness', 'pro_consistency', 'pro_traceability'],
     condition_labels: {
@@ -161,6 +164,7 @@ export const SURVEY_DATA = [
   },
   {
     id: 4,
+    psf: "교육/훈련",
     text: "4. 다음의 조건이라고 가정했을 때, 귀하가 느끼는 교육/훈련 성과 및 수준은 어느 정도입니까?",
     condition_keys: ['ex_appropriateness', 'ex_frequency', 'ex_experience', 'ex_evaluation', 'ex_system_proficiency', 'ex_procedure_proficiency', 'ex_equipment_proficiency'],
     condition_labels: {
@@ -178,6 +182,7 @@ export const SURVEY_DATA = [
   },
   {
     id: 5,
+    psf: "의사소통",
     text: "5. 다음의 조건이라고 가정했을 때, 귀하가 느끼는 의사소통은 어느 정도입니까?",
     condition_keys: ['commu_length', 'commu_equipment', 'commu_term', 'commu_protocol', 'commu_SW', 'commu_team'],
     condition_labels: {
@@ -194,6 +199,7 @@ export const SURVEY_DATA = [
   },
   {
     id: 6,
+    psf: "환경요인",
     text: "6. 다음의 조건이라고 가정했을 때, 귀하가 느끼는 업무 수행 환경은 어느 정도입니까?",
     condition_keys: ['env_wind', 'env_rain', 'env_out_humidity', 'env_out_temp', 'env_lightning', 'env_fog', 'env_dust', 'env_space', 'env_friction', 'env_in_temp', 'env_in_humidity', 'env_ventilation', 'env_noise', 'env_visibility'],
     condition_labels: {
@@ -218,6 +224,7 @@ export const SURVEY_DATA = [
   },
   {
     id: 7,
+    psf: "조직/관리",
     text: "7. 다음의 조건이라고 가정했을 때, 귀하가 느끼는 작업 절차는 어느 정도입니까?",
     condition_keys: ['work_supervisor', 'work_plan', 'work_process', 'work_role', 'work_cooperation'],
     condition_labels: {
@@ -233,6 +240,7 @@ export const SURVEY_DATA = [
   },
   {
     id: 8,
+    psf: "직무 복잡도",
     text: "8. 다음의 조건이라고 가정했을 때, 귀하가 느끼는 직무 복잡도는 어느 정도입니까?",
     condition_keys: ['com_clarity', 'com_alternative', 'com_judgment', 'com_number', 'com_observation', 'com_inference', 'com_uncertainty'],
     condition_labels: {

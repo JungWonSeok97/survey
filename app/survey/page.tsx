@@ -365,7 +365,7 @@ export default function SurveyPage() {
         // 다음 라운드: 같은 문제로 시나리오만 새로 생성
         setCurrentRound(currentRound + 1);
       } else {
-        alert('모든 설문이 완료되었습니다.\n제출 버튼을 눌러주세요.');
+        alert('모든 설문이 완료되었습니다!');
         setCompleted(true);
       }
     } catch (err) {
@@ -373,14 +373,6 @@ export default function SurveyPage() {
     }
   };
 
-  const handleSubmit = () => {
-    const recipient = 'jerry@bees.pro';
-    const subject = `설문 결과 제출 (${name})`;
-    const body = `안녕하세요.\n\n${name}(${job}, 소속 ${affiliation}, 근속 ${years}년)님이 작성한 설문 결과입니다.\n\n'survey_results' 폴더에 저장된 엑셀 파일들을 이 메일에 첨부하여 보내주세요.\n\n감사합니다.`;
-    
-    const mailtoLink = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailtoLink;
-  };
 
   const handleQuestionSelect = (questionId: number) => {
     if (selectedQuestionIds.includes(questionId)) {
@@ -762,18 +754,6 @@ export default function SurveyPage() {
                 }`}
               >
                 완료
-              </button>
-
-              <button
-                onClick={handleSubmit}
-                disabled={!completed}
-                className={`px-6 py-2 rounded-md font-medium ${
-                  completed
-                    ? 'bg-green-600 text-white hover:bg-green-700'
-                    : 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                }`}
-              >
-                제출
               </button>
             </div>
 

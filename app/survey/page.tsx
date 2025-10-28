@@ -344,7 +344,14 @@ export default function SurveyPage() {
         }),
       });
 
-      if (!response.ok) throw new Error('저장 실패');
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('API Error:', errorData);
+        throw new Error(errorData.error || errorData.message || '저장 실패');
+      }
+
+      const result = await response.json();
+      console.log('Save success:', result);
 
       if (currentRound < TOTAL_ROUNDS) {
         alert(`${currentRound}/${TOTAL_ROUNDS}회 완료 및 저장되었습니다.`);

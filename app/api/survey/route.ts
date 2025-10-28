@@ -8,6 +8,27 @@ const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
 export async function POST(request: NextRequest) {
   try {
+    // 환경변수 확인
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    console.log('Environment check:');
+    console.log('supabaseUrl exists:', !!supabaseUrl);
+    console.log('supabaseServiceRoleKey exists:', !!supabaseServiceRoleKey);
+
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: '환경변수가 설정되지 않았습니다.',
+          missingUrl: !supabaseUrl,
+          missingKey: !supabaseServiceRoleKey
+        },
+        { status: 500 }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
     const data = await request.json();
 
     // Supabase 데이터베이스에 저장
@@ -45,8 +66,14 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Supabase insert error:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
       return NextResponse.json(
-        { success: false, message: '데이터베이스 저장 중 오류가 발생했습니다.' },
+        { 
+          success: false, 
+          message: '데이터베이스 저장 중 오류가 발생했습니다.',
+          error: error.message,
+          details: error
+        },
         { status: 500 }
       );
     }
@@ -58,8 +85,13 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Survey save error:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'Unknown error');
     return NextResponse.json(
-      { success: false, message: '저장 중 오류가 발생했습니다.' },
+      { 
+        success: false, 
+        message: '저장 중 오류가 발생했습니다.',
+        error: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }

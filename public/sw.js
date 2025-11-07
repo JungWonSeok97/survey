@@ -1,5 +1,5 @@
 // 서비스 워커 설정
-const CACHE_NAME = 'survey-app-v3';
+const CACHE_NAME = 'survey-app-v4';
 const urlsToCache = [
   '/',
   '/survey',

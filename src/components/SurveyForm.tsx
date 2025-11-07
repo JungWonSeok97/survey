@@ -356,21 +356,12 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
         window.scrollTo({ top: 0, behavior: 'smooth' });
         setCurrentRound(currentRound + 1);
       } else {
-        alert('모든 설문이 완료되었습니다.\n제출 버튼을 눌러주세요.');
+        alert('모든 설문이 완료되었습니다. 감사합니다!');
         setCompleted(true);
       }
     } catch (err) {
       setError('저장 중 오류가 발생했습니다.');
     }
-  };
-
-  const handleSubmit = () => {
-    const recipient = 'jerry@bees.pro';
-    const subject = `설문 결과 제출 (${name} - ${groupName})`;
-    const body = `안녕하세요.\n\n${name}(${job}, 소속 ${affiliation}, 근속 ${years}년)님이 작성한 ${groupName} 설문 결과입니다.\n\nSupabase에 저장되었습니다.\n\n감사합니다.`;
-    
-    const mailtoLink = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailtoLink;
   };
 
   const handleStartSurvey = () => {
@@ -747,18 +738,6 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
                 }`}
               >
                 완료
-              </button>
-
-              <button
-                onClick={handleSubmit}
-                disabled={!completed}
-                className={`px-6 py-2 rounded-md font-medium ${
-                  completed
-                    ? 'bg-green-600 text-white hover:bg-green-700'
-                    : 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                }`}
-              >
-                제출
               </button>
             </div>
 

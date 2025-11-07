@@ -414,7 +414,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  성명 <span className="text-red-500">*</span>
+                  성명을 적어주세요. <span className="text-red-500">*</span>
                 </label>
                 <input
                   ref={nameRef}
@@ -428,7 +428,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  회사 <span className="text-red-500">*</span>
+                  회사를 적어주세요. <span className="text-red-500">*</span>
                 </label>
                 <input
                   ref={affiliationRef}
@@ -442,7 +442,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  근속기간(년) <span className="text-red-500">*</span>
+                  근속기간(년)을 적어주세요. <span className="text-red-500">*</span>
                 </label>
                 <input
                   ref={yearsRef}
@@ -474,7 +474,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  사번 <span className="text-red-500">*</span>
+                  사번을 적어주세요. <span className="text-red-500">*</span>
                 </label>
                 <input
                   ref={employeeIdRef}
@@ -488,7 +488,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  직급 <span className="text-red-500">*</span>
+                  직급을 적어주세요. ex) 운전3급, 토목4급 등 <span className="text-red-500">*</span>
                 </label>
                 <input
                   ref={positionRef}
@@ -496,13 +496,13 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
                   value={position}
                   onChange={(e) => setPosition(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="직급 입력"
+                  placeholder="운전3급, 토목4급 등"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  소속 <span className="text-red-500">*</span>
+                  소속을 적어주세요. ex) OO본부 OO처 등 <span className="text-red-500">*</span>
                 </label>
                 <input
                   ref={departmentRef}
@@ -510,7 +510,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
                   value={department}
                   onChange={(e) => setDepartment(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="소속 부서"
+                  placeholder="OO본부 OO처 등"
                 />
               </div>
 
@@ -545,7 +545,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  사무실 연락처 <span className="text-red-500">*</span>
+                  사무실 연락처를 적어주세요. <span className="text-red-500">*</span>
                 </label>
                 <input
                   ref={officePhoneRef}
@@ -559,7 +559,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  회사 메일 <span className="text-red-500">*</span>
+                  회사 메일을 적어주세요. <span className="text-red-500">*</span>
                 </label>
                 <input
                   ref={companyEmailRef}
@@ -573,7 +573,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  철도 관련 자격증 보유 여부 <span className="text-red-500">*</span>
+                  철도 관련 자격증 보유 여부를 적어주세요. <span className="text-red-500">*</span>
                 </label>
                 <input
                   ref={railroadCertificationRef}
@@ -587,7 +587,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  직무교육이수 여부 <span className="text-red-500">*</span>
+                  직무교육이수 여부(2학점 인정)를 적어주세요. <span className="text-red-500">*</span>
                 </label>
                 <input
                   ref={jobEducationRef}
@@ -601,7 +601,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  건강검진 일시 <span className="text-red-500">*</span>
+                  당신의 건강검진 일시를 적어주세요. <span className="text-red-500">*</span>
                 </label>
                 <input
                   ref={healthCheckDateRef}
@@ -614,7 +614,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  건강검진시 체온 <span className="text-red-500">*</span>
+                  당신의 건강검진시 체온을 적어주세요. <span className="text-red-500">*</span>
                 </label>
                 <input
                   ref={bodyTemperatureRef}
@@ -628,7 +628,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  건강검진시 수축기 혈압 <span className="text-red-500">*</span>
+                  당신의 건강검진시 수축기 혈압을 적어주세요. <span className="text-red-500">*</span>
                 </label>
                 <input
                   ref={systolicBPRef}
@@ -642,7 +642,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  건강검진시 이완기 혈압 <span className="text-red-500">*</span>
+                  당신의 건강검진시 이완기 혈압을 적어주세요. <span className="text-red-500">*</span>
                 </label>
                 <input
                   ref={diastolicBPRef}
@@ -656,7 +656,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  건강검진시 맥박 <span className="text-red-500">*</span>
+                  당신의 건강검진시 맥박을 적어주세요. <span className="text-red-500">*</span>
                 </label>
                 <input
                   ref={pulseRef}
@@ -670,7 +670,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  근무유형 <span className="text-red-500">*</span>
+                  당신의 근무유형을 적어주세요. ex) 야간격일 O조, 4조 2교대 O조, 통상일근, 시차O형 등 <span className="text-red-500">*</span>
                 </label>
                 <input
                   ref={workTypeRef}
@@ -678,13 +678,13 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
                   value={workType}
                   onChange={(e) => setWorkType(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="교대근무/주간근무 등"
+                  placeholder="야간격일 O조, 4조 2교대 O조, 통상일근, 시차O형 등"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  출근/퇴근일시 <span className="text-red-500">*</span>
+                  당신의 출근/퇴근일시를 적어주세요. ex) 09:00/18:00 등 <span className="text-red-500">*</span>
                 </label>
                 <input
                   ref={workTimeRef}
@@ -692,13 +692,13 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
                   value={workTime}
                   onChange={(e) => setWorkTime(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="09:00-18:00"
+                  placeholder="09:00/18:00 등"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  사원증 출입증 일련번호 <span className="text-red-500">*</span>
+                  당신의 사원증 출입증 일련번호를 적어주세요. <span className="text-red-500">*</span>
                 </label>
                 <input
                   ref={employeeCardNumberRef}

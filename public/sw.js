@@ -1,5 +1,5 @@
 // 서비스 워커 설정
-const CACHE_NAME = 'survey-app-v1';
+const CACHE_NAME = 'survey-app-v2';
 const urlsToCache = [
   '/',
   '/survey',
@@ -64,24 +64,43 @@ self.addEventListener('fetch', (event) => {
         })
     );
   } else {
-    // 일반 리소스는 캐시 우선
-    event.respondWith(
-      caches.match(request).then((response) => {
-        return response || fetch(request).then((response) => {
-          // 성공한 응답만 캐싱
-          if (!response || response.status !== 200) {
+    // HTML 페이지는 네트워크 우선 (항상 최신 버전)
+    if (request.headers.get('accept').includes('text/html')) {
+      event.respondWith(
+        fetch(request)
+          .then((response) => {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseToCache);
+            });
             return response;
-          }
+          })
+          .catch(() => {
+            return caches.match(request).then((response) => {
+              return response || caches.match('/offline.html');
+            });
+          })
+      );
+    } else {
+      // 정적 리소스는 캐시 우선
+      event.respondWith(
+        caches.match(request).then((response) => {
+          return response || fetch(request).then((response) => {
+            // 성공한 응답만 캐싱
+            if (!response || response.status !== 200) {
+              return response;
+            }
 
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache);
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseToCache);
+            });
+
+            return response;
           });
-
-          return response;
-        });
-      })
-    );
+        })
+      );
+    }
   }
 });
 

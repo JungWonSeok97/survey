@@ -587,7 +587,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
                   value={jobEducation}
                   onChange={(e) => setJobEducation(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="유 또는 무"
+                  placeholder="2학점 인정"
                 />
               </div>
 

@@ -150,7 +150,7 @@ export const SURVEY_DATA = [
     condition_keys: ['pro_availability', 'pro_complexity', 'pro_clarity', 'pro_appropriateness', 'pro_consistency', 'pro_traceability'],
     condition_labels: {
       pro_availability: '(직무)절차의 유무(가용성)',
-      pro_complexity: '(직무)절차의 복잡성',
+      pro_complexity: '(직무)절차 기술(description)의 복잡성',
       pro_clarity: '(직무)절차의 명료성(구체성)',
       pro_appropriateness: '(직무)절차의 적절성(완전성 포함)',
       pro_consistency: '(직무)절차의 일관성',

@@ -119,7 +119,7 @@ export const SURVEY_DATA = [
       task: '작업시간',
       sleep: '수면시간',
       availtime: '작업 허용 시간',
-      work_shift: '근무 형태',
+      work_shift: '근무시간대',
     },
     options: ["보통", "나쁨", "매우나쁨"],
     condition_columns: 1,

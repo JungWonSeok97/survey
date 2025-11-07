@@ -14,7 +14,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
   const [name, setName] = useState('');
   const [affiliation, setAffiliation] = useState('');
   const [years, setYears] = useState('');
-  const [job, setJob] = useState('선택');
+  const [job, setJob] = useState('기관사');
   const [questions, setQuestions] = useState<any[]>([]);
   const [completed, setCompleted] = useState(false);
   const [error, setError] = useState('');
@@ -155,13 +155,6 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
       setError('근속기간은 숫자만 입력할 수 있습니다.');
       yearsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       yearsRef.current?.focus();
-      return false;
-    }
-
-    if (job === '선택') {
-      setError('종사자 구분을 선택해 주세요.');
-      jobRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      jobRef.current?.focus();
       return false;
     }
 
@@ -396,7 +389,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
       <div className="max-w-4xl mx-auto bg-white rounded-lg shadow p-8">
         {/* 헤더 */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">설문지 소프트웨어 - {groupName}</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">설문지</h1>
           <p className="text-gray-600">
             총 {TOTAL_ROUNDS}번의 설문을 완료해 주세요. 이 그룹은 {psfNames} PSF에 대한 설문입니다.
           </p>
@@ -464,11 +457,10 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
                   onChange={(e) => setJob(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="선택">선택</option>
                   <option value="기관사">기관사</option>
                   <option value="관제사">관제사</option>
-                  <option value="여객">여객</option>
-                  <option value="화물">화물</option>
+                  <option value="승무원">승무원</option>
+                  <option value="작업자">작업자</option>
                 </select>
               </div>
 

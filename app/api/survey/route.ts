@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       name: data.name,
       affiliation: data.affiliation,
       job: data.job,
-      years: data.years,
+      years: parseInt(data.years) || 0,
       employee_id: data.employeeId,
       position: data.position,
       department: data.department,
@@ -91,12 +91,32 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Survey save error:', error);
+    console.error('Error type:', typeof error);
+    console.error('Error constructor:', error instanceof Error ? error.constructor.name : 'Unknown');
     console.error('Error stack:', error instanceof Error ? error.stack : 'Unknown error');
+    
+    let errorMessage = '저장 중 오류가 발생했습니다.';
+    let errorDetails = null;
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      errorDetails = {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      };
+    } else if (typeof error === 'object' && error !== null) {
+      errorDetails = error;
+      errorMessage = JSON.stringify(error);
+    }
+    
     return NextResponse.json(
       { 
         success: false, 
-        message: '저장 중 오류가 발생했습니다.',
-        error: error instanceof Error ? error.message : String(error)
+        message: `저장 중 오류가 발생했습니다. ${errorMessage}`,
+        error: errorMessage,
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        details: errorDetails
       },
       { status: 500 }
     );

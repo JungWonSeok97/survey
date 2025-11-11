@@ -2,8 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
-// 샘플 데이터 (나중에 Supabase에서 가져올 데이터)
+// Supabase에서 가져온 데이터 타입
+interface SurveyData {
+  id: number;
+  name: string;
+  affiliation: string;
+  job: string;
+  years: number;
+  survey_group: string;
+  round: number;
+  created_at: string;
+  employee_id: string;
+  position: string;
+  department: string;
+}
+
+// 샘플 데이터 (Supabase 로딩 실패시 사용)
 const SAMPLE_DATA = [
   {
     id: 1,
@@ -80,6 +96,9 @@ export default function AdminDashboard() {
   const [filterGroup, setFilterGroup] = useState('전체');
   const [sortBy, setSortBy] = useState<'name' | 'job' | 'years'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [surveyData, setSurveyData] = useState<SurveyData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     // 로그인 확인
@@ -88,8 +107,50 @@ export default function AdminDashboard() {
       router.push('/admin');
     } else {
       setIsLoggedIn(true);
+      fetchSurveyData();
     }
   }, [router]);
+
+  // Supabase에서 데이터 가져오기
+  const fetchSurveyData = async () => {
+    try {
+      setIsLoading(true);
+      setError('');
+
+      const { data, error } = await supabase
+        .from('survey_responses')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Supabase error:', error);
+        setError('데이터를 불러오는데 실패했습니다.');
+        setSurveyData(SAMPLE_DATA); // 에러시 샘플 데이터 사용
+      } else {
+        // Supabase 데이터를 UI 형식에 맞게 변환
+        const formattedData = (data || []).map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          affiliation: item.affiliation,
+          job: item.job,
+          years: parseInt(item.years) || 0,
+          survey_group: item.survey_group || 'N/A',
+          round: item.round,
+          created_at: item.created_at,
+          employee_id: item.employee_id || 'N/A',
+          position: item.position || 'N/A',
+          department: item.department || 'N/A',
+        }));
+        setSurveyData(formattedData);
+      }
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setError('데이터를 불러오는 중 오류가 발생했습니다.');
+      setSurveyData(SAMPLE_DATA); // 에러시 샘플 데이터 사용
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     sessionStorage.removeItem('adminLoggedIn');
@@ -97,7 +158,7 @@ export default function AdminDashboard() {
   };
 
   // 필터링된 데이터
-  const filteredData = SAMPLE_DATA.filter((item) => {
+  const filteredData = surveyData.filter((item) => {
     const matchSearch = 
       item.name.includes(searchTerm) || 
       item.affiliation.includes(searchTerm) ||
@@ -145,6 +206,15 @@ export default function AdminDashboard() {
     </div>;
   }
 
+  if (isLoading) {
+    return <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-gray-600">데이터를 불러오는 중...</p>
+      </div>
+    </div>;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 헤더 */}
@@ -164,6 +234,14 @@ export default function AdminDashboard() {
 
       {/* 메인 컨텐츠 */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* 에러 메시지 */}
+        {error && (
+          <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p className="text-yellow-800">⚠️ {error}</p>
+            <p className="text-sm text-yellow-600 mt-1">샘플 데이터를 표시합니다.</p>
+          </div>
+        )}
+
         {/* 통계 카드 */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
@@ -172,18 +250,20 @@ export default function AdminDashboard() {
           </div>
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-sm font-medium text-gray-500 mb-2">총 응답 수</h3>
-            <p className="text-3xl font-bold text-green-600">{SAMPLE_DATA.length}회</p>
+            <p className="text-3xl font-bold text-green-600">{surveyData.length}회</p>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-sm font-medium text-gray-500 mb-2">평균 완료율</h3>
             <p className="text-3xl font-bold text-purple-600">
-              {Math.round((SAMPLE_DATA.length / uniqueUsers.length / 30) * 100)}%
+              {uniqueUsers.length > 0 ? Math.round((surveyData.length / uniqueUsers.length / 30) * 100) : 0}%
             </p>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-sm font-medium text-gray-500 mb-2">최근 응답</h3>
             <p className="text-sm font-semibold text-gray-700">
-              {new Date(SAMPLE_DATA[SAMPLE_DATA.length - 1]?.created_at).toLocaleDateString('ko-KR')}
+              {surveyData.length > 0 
+                ? new Date(surveyData[0]?.created_at).toLocaleDateString('ko-KR')
+                : 'N/A'}
             </p>
           </div>
         </div>

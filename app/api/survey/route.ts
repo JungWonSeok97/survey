@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
       work_time: data.workTime,
       employee_card_number: data.employeeCardNumber,
       round: data.round,
+      survey_group: data.surveyGroup,
       questions: data.questions,
       saved_at: new Date().toISOString(),
     };

@@ -19,75 +19,6 @@ interface SurveyData {
   department: string;
 }
 
-// 샘플 데이터 (Supabase 로딩 실패시 사용)
-const SAMPLE_DATA = [
-  {
-    id: 1,
-    name: '정원석',
-    affiliation: 'A회사',
-    job: '기관사',
-    years: 10,
-    survey_group: 'Group 1',
-    round: 1,
-    created_at: '2025-10-27T11:48:52',
-    employee_id: 'EMP001',
-    position: '운전3급',
-    department: '운전본부 운전처',
-  },
-  {
-    id: 2,
-    name: '정원석',
-    affiliation: 'A회사',
-    job: '기관사',
-    years: 10,
-    survey_group: 'Group 1',
-    round: 2,
-    created_at: '2025-10-27T11:49:03',
-    employee_id: 'EMP001',
-    position: '운전3급',
-    department: '운전본부 운전처',
-  },
-  {
-    id: 3,
-    name: '김철수',
-    affiliation: 'B회사',
-    job: '관제사',
-    years: 5,
-    survey_group: 'Group 2',
-    round: 1,
-    created_at: '2025-10-28T09:30:15',
-    employee_id: 'EMP002',
-    position: '토목4급',
-    department: '관제본부 관제처',
-  },
-  {
-    id: 4,
-    name: '이영희',
-    affiliation: 'C회사',
-    job: '승무원',
-    years: 3,
-    survey_group: 'Group 3',
-    round: 1,
-    created_at: '2025-10-28T14:20:30',
-    employee_id: 'EMP003',
-    position: '승무5급',
-    department: '여객본부 여객처',
-  },
-  {
-    id: 5,
-    name: '박민수',
-    affiliation: 'A회사',
-    job: '작업자',
-    years: 8,
-    survey_group: 'Group 4',
-    round: 1,
-    created_at: '2025-10-29T10:15:45',
-    employee_id: 'EMP004',
-    position: '작업6급',
-    department: '시설본부 시설처',
-  },
-];
-
 export default function AdminDashboard() {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -125,7 +56,7 @@ export default function AdminDashboard() {
       if (error) {
         console.error('Supabase error:', error);
         setError('데이터를 불러오는데 실패했습니다.');
-        setSurveyData(SAMPLE_DATA); // 에러시 샘플 데이터 사용
+        setSurveyData([]); // 에러시 빈 배열
       } else {
         // Supabase 데이터를 UI 형식에 맞게 변환
         const formattedData = (data || []).map((item: any) => ({
@@ -146,7 +77,7 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error('Fetch error:', err);
       setError('데이터를 불러오는 중 오류가 발생했습니다.');
-      setSurveyData(SAMPLE_DATA); // 에러시 샘플 데이터 사용
+      setSurveyData([]); // 에러시 빈 배열
     } finally {
       setIsLoading(false);
     }
@@ -236,9 +167,9 @@ export default function AdminDashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 에러 메시지 */}
         {error && (
-          <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <p className="text-yellow-800">⚠️ {error}</p>
-            <p className="text-sm text-yellow-600 mt-1">샘플 데이터를 표시합니다.</p>
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-red-800">❌ {error}</p>
+            <p className="text-sm text-red-600 mt-1">Supabase 연결을 확인해주세요.</p>
           </div>
         )}
 

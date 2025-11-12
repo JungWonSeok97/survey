@@ -432,10 +432,10 @@ export default function AdminDashboard() {
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
             {/* 헤더 */}
-            <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 flex justify-between items-center shadow-md z-10">
+            <div className="sticky top-0 bg-gray-800 px-6 py-5 flex justify-between items-center shadow-md z-10">
               <div>
                 <h2 className="text-2xl font-bold text-white">응답 상세정보</h2>
-                <p className="text-blue-100 text-sm mt-1">
+                <p className="text-gray-300 text-sm mt-1">
                   {selectedUser?.name} ({selectedUser?.employee_id})
                 </p>
               </div>
@@ -444,7 +444,7 @@ export default function AdminDashboard() {
                   setShowDetailModal(false);
                   setSelectedUser(null);
                 }}
-                className="text-white hover:text-gray-200 transition-colors"
+                className="text-white hover:text-gray-300 transition-colors"
               >
                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -455,10 +455,7 @@ export default function AdminDashboard() {
             <div className="p-6 bg-gray-50">
               {/* 기본 정보 */}
               <div className="mb-6 bg-white rounded-lg shadow-sm p-5">
-                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                  <span className="bg-blue-100 text-blue-700 rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm">
-                    👤
-                  </span>
+                <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">
                   기본 정보
                 </h3>
                 <div className="grid grid-cols-3 gap-4">
@@ -525,10 +522,7 @@ export default function AdminDashboard() {
 
               {/* 건강 정보 */}
               <div className="mb-6 bg-white rounded-lg shadow-sm p-5">
-                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                  <span className="bg-green-100 text-green-700 rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm">
-                    💊
-                  </span>
+                <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">
                   건강 정보
                 </h3>
                 <div className="grid grid-cols-4 gap-4">
@@ -553,10 +547,7 @@ export default function AdminDashboard() {
 
               {/* 근무 정보 */}
               <div className="mb-6 bg-white rounded-lg shadow-sm p-5">
-                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                  <span className="bg-purple-100 text-purple-700 rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm">
-                    💼
-                  </span>
+                <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">
                   근무 정보
                 </h3>
                 <div className="grid grid-cols-4 gap-4">
@@ -581,31 +572,29 @@ export default function AdminDashboard() {
 
               {/* 모든 회차 설문 응답 */}
               <div className="mb-6">
-                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center bg-white rounded-lg shadow-sm p-5">
-                  <span className="bg-orange-100 text-orange-700 rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm">
-                    📋
-                  </span>
-                  전체 설문 응답
-                  <span className="ml-auto bg-blue-600 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                    총 {selectedUser?.allRounds?.length || 0}회차
-                  </span>
-                </h3>
+                <div className="bg-white rounded-lg shadow-sm p-5 mb-4">
+                  <h3 className="text-lg font-bold text-gray-800 flex items-center justify-between">
+                    전체 설문 응답
+                    <span className="bg-gray-800 text-white px-3 py-1 rounded-md text-sm font-semibold">
+                      총 {selectedUser?.allRounds?.length || 0}회차
+                    </span>
+                  </h3>
+                </div>
                 {selectedUser?.allRounds && Array.isArray(selectedUser.allRounds) && selectedUser.allRounds.length > 0 ? (
-                  <div className="space-y-5">
+                  <div className="space-y-4">
                     {selectedUser.allRounds
                       .sort((a: any, b: any) => a.round - b.round)
                       .map((roundData: any, roundIdx: number) => (
-                      <div key={roundIdx} className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+                      <div key={roundIdx} className="bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm">
                         {/* 회차 헤더 */}
-                        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-5 py-4 flex justify-between items-center">
+                        <div className="bg-gray-700 px-5 py-3 flex justify-between items-center">
                           <div className="flex items-center">
-                            <span className="bg-white text-indigo-600 font-bold px-3 py-1 rounded-full text-lg mr-3">
+                            <span className="bg-white text-gray-700 font-bold px-3 py-1 rounded-md text-base">
                               {roundData.round}회차
                             </span>
                           </div>
                           <div className="text-right">
-                            <p className="text-white text-xs opacity-90">응답 일시</p>
-                            <p className="text-white font-semibold text-sm">
+                            <p className="text-white font-medium text-sm">
                               {roundData.saved_at ? new Date(roundData.saved_at).toLocaleString('ko-KR', {
                                 year: 'numeric',
                                 month: '2-digit',
@@ -621,7 +610,7 @@ export default function AdminDashboard() {
                         {roundData.questions && Array.isArray(roundData.questions) && roundData.questions.length > 0 ? (
                           <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
-                              <thead className="bg-gray-100">
+                              <thead className="bg-gray-50">
                                 <tr>
                                   <th className="px-5 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-300 w-28">
                                     PSF 번호
@@ -636,14 +625,14 @@ export default function AdminDashboard() {
                               </thead>
                               <tbody className="bg-white divide-y divide-gray-200">
                                 {roundData.questions.map((q: any, qIdx: number) => (
-                                  <tr key={qIdx} className="hover:bg-blue-50 transition-colors">
+                                  <tr key={qIdx} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-5 py-4 border-r border-gray-200">
-                                      <span className="inline-flex items-center px-3 py-1 rounded-lg bg-blue-100 text-blue-800 font-bold text-sm">
+                                      <span className="inline-flex items-center px-3 py-1 rounded-md bg-gray-100 text-gray-800 font-semibold text-sm">
                                         PSF {q?.id || 'N/A'}
                                       </span>
                                     </td>
                                     <td className="px-5 py-4 text-center border-r border-gray-200">
-                                      <span className="inline-flex items-center justify-center w-10 h-10 bg-gradient-to-br from-green-400 to-green-600 text-white rounded-full font-bold text-lg shadow-md">
+                                      <span className="inline-flex items-center justify-center w-9 h-9 bg-gray-800 text-white rounded-md font-bold text-base">
                                         {q?.answer || 'N/A'}
                                       </span>
                                     </td>
@@ -663,13 +652,13 @@ export default function AdminDashboard() {
                                         }
 
                                         return (
-                                          <div className="space-y-2">
+                                          <div className="space-y-1.5">
                                             {conditionEntries.map(([label, value], idx) => (
-                                              <div key={idx} className="flex items-start bg-gray-50 p-2 rounded-lg">
-                                                <span className="inline-flex items-center justify-center bg-indigo-600 text-white font-bold text-xs px-2 py-1 rounded mr-2 whitespace-nowrap">
+                                              <div key={idx} className="flex items-start">
+                                                <span className="inline-flex items-center bg-gray-700 text-white font-semibold text-xs px-2 py-1 rounded mr-2 whitespace-nowrap">
                                                   {label}
                                                 </span>
-                                                <span className="text-gray-800 font-medium text-sm">
+                                                <span className="text-gray-800 text-sm">
                                                   {value as string}
                                                 </span>
                                               </div>

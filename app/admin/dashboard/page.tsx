@@ -396,7 +396,14 @@ export default function AdminDashboard() {
                         <button
                           className="text-blue-600 hover:text-blue-900 mr-3"
                           onClick={() => {
-                            setSelectedUser(user);
+                            // 해당 사용자의 모든 회차 데이터 찾기
+                            const userAllRounds = surveyData.filter(
+                              item => item.name === user.name && item.employee_id === user.employee_id
+                            );
+                            setSelectedUser({
+                              ...user,
+                              allRounds: userAllRounds
+                            });
                             setShowDetailModal(true);
                           }}
                         >
@@ -552,98 +559,83 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* 설문 응답 */}
+              {/* 모든 회차 설문 응답 */}
               <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">설문 응답 (Questions JSON)</h3>
-                {selectedUser.questions && Array.isArray(selectedUser.questions) && selectedUser.questions.length > 0 ? (
-                  <div className="space-y-4">
-                    {selectedUser.questions.map((q: any, idx: number) => (
-                      <div key={idx} className="bg-gray-50 p-4 rounded-lg">
-                        <div className="mb-2">
-                          <span className="text-sm font-semibold text-blue-600">
-                            {q?.number || 'N/A'} PSF {q?.id || 'N/A'}
+                <h3 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">
+                  전체 설문 응답 ({selectedUser?.allRounds?.length || 0}회차)
+                </h3>
+                {selectedUser?.allRounds && Array.isArray(selectedUser.allRounds) && selectedUser.allRounds.length > 0 ? (
+                  <div className="space-y-6">
+                    {selectedUser.allRounds
+                      .sort((a: any, b: any) => a.round - b.round)
+                      .map((roundData: any, roundIdx: number) => (
+                      <div key={roundIdx} className="border border-gray-300 rounded-lg overflow-hidden">
+                        {/* 회차 헤더 */}
+                        <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 flex justify-between items-center">
+                          <h4 className="text-white font-bold text-lg">
+                            {roundData.round}회차
+                          </h4>
+                          <span className="text-white text-sm">
+                            {roundData.saved_at ? new Date(roundData.saved_at).toLocaleString('ko-KR') : 'N/A'}
                           </span>
                         </div>
-                        <div className="space-y-2">
-                          {q?.conditions && Array.isArray(q.conditions) && q.conditions.map((condition: string, cIdx: number) => (
-                            <div key={cIdx} className="flex items-start">
-                              <span className="text-sm text-gray-700 mr-3 font-medium">
-                                {String.fromCharCode(65 + cIdx)}.
-                              </span>
-                              <span className="text-sm text-gray-700">{condition}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="mt-3 pt-3 border-t border-gray-300">
-                          <span className="text-sm font-medium text-gray-500">선택한 답변: </span>
-                          <span className="text-sm font-bold text-green-700">
-                            {q?.answer || 'N/A'}
-                          </span>
-                        </div>
+                        
+                        {/* 설문 응답 테이블 */}
+                        {roundData.questions && Array.isArray(roundData.questions) && roundData.questions.length > 0 ? (
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-r w-24">
+                                    PSF
+                                  </th>
+                                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-r w-20">
+                                    답변
+                                  </th>
+                                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                    조건
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {roundData.questions.map((q: any, qIdx: number) => (
+                                  <tr key={qIdx} className="hover:bg-gray-50">
+                                    <td className="px-4 py-3 text-sm font-bold text-blue-600 border-r">
+                                      PSF {q?.id || 'N/A'}
+                                    </td>
+                                    <td className="px-4 py-3 text-center border-r">
+                                      <span className="inline-block px-3 py-1 bg-green-500 text-white rounded-full font-bold text-sm">
+                                        {q?.answer || 'N/A'}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-3 text-sm">
+                                      {q?.conditions && Array.isArray(q.conditions) ? (
+                                        <div className="space-y-1.5">
+                                          {q.conditions.map((condition: string, cIdx: number) => (
+                                            <div key={cIdx} className="flex items-start">
+                                              <span className="inline-flex items-center justify-center w-6 h-6 bg-gray-200 text-gray-700 rounded-full font-semibold text-xs mr-2 flex-shrink-0">
+                                                {String.fromCharCode(65 + cIdx)}
+                                              </span>
+                                              <span className="text-gray-700 leading-6">{condition}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <span className="text-gray-400 italic">조건 없음</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <div className="px-4 py-8 text-center text-gray-500">
+                            이 회차의 설문 응답 데이터가 없습니다.
+                          </div>
+                        )}
                       </div>
                     ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-500">설문 응답 데이터가 없습니다.</p>
-                )}
-              </div>
-
-              {/* 설문 응답 상세 테이블 */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">설문 응답 상세 데이터</h3>
-                {selectedUser?.questions && Array.isArray(selectedUser.questions) && selectedUser.questions.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 border border-gray-300">
-                      <thead className="bg-gray-100">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r">
-                            PSF ID
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r">
-                            번호
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r">
-                            선택 답변
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                            조건 내용
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {selectedUser.questions.map((q: any, idx: number) => (
-                          <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-blue-600 border-r">
-                              {q?.id || 'N/A'}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 border-r">
-                              {q?.number || 'N/A'}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm border-r">
-                              <span className="px-2 py-1 bg-green-100 text-green-800 rounded font-bold">
-                                {q?.answer || 'N/A'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-700">
-                              {q?.conditions && Array.isArray(q.conditions) ? (
-                                <ul className="space-y-1">
-                                  {q.conditions.map((condition: string, cIdx: number) => (
-                                    <li key={cIdx} className="flex items-start">
-                                      <span className="font-semibold mr-2 text-gray-600">
-                                        {String.fromCharCode(65 + cIdx)}.
-                                      </span>
-                                      <span>{condition}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <span className="text-gray-400">조건 없음</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
                   </div>
                 ) : (
                   <p className="text-sm text-gray-500">설문 응답 데이터가 없습니다.</p>

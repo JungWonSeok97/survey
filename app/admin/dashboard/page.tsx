@@ -48,6 +48,12 @@ export default function AdminDashboard() {
       setIsLoading(true);
       setError('');
 
+      // 환경변수 확인
+      console.log('Environment check:', {
+        hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+        hasKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      });
+
       const { data, error } = await supabase
         .from('survey_responses')
         .select('*')
@@ -55,7 +61,13 @@ export default function AdminDashboard() {
 
       if (error) {
         console.error('Supabase error:', error);
-        setError('데이터를 불러오는데 실패했습니다.');
+        console.error('Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        setError(`데이터를 불러오는데 실패했습니다: ${error.message}`);
         setSurveyData([]); // 에러시 빈 배열
       } else {
         // Supabase 데이터를 UI 형식에 맞게 변환

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { SURVEY_DATA, ALL_OPTION_LISTS } from '@/lib/surveyData';
 
 // Supabase에서 가져온 데이터 타입
 interface SurveyData {
@@ -610,15 +611,47 @@ export default function AdminDashboard() {
                                     </td>
                                     <td className="px-4 py-3 text-sm">
                                       {q?.conditions && Array.isArray(q.conditions) ? (
-                                        <div className="space-y-1.5">
-                                          {q.conditions.map((condition: string, cIdx: number) => (
-                                            <div key={cIdx} className="flex items-start">
-                                              <span className="inline-flex items-center justify-center w-6 h-6 bg-gray-200 text-gray-700 rounded-full font-semibold text-xs mr-2 flex-shrink-0">
-                                                {String.fromCharCode(65 + cIdx)}
-                                              </span>
-                                              <span className="text-gray-700 leading-6">{condition}</span>
-                                            </div>
-                                          ))}
+                                        <div className="space-y-2">
+                                          {/* PSF 정보 가져오기 */}
+                                          {(() => {
+                                            const psfData = SURVEY_DATA.find(psf => psf.id === q.id);
+                                            if (!psfData) {
+                                              return q.conditions.map((condition: string, cIdx: number) => (
+                                                <div key={cIdx} className="flex items-start">
+                                                  <span className="inline-flex items-center justify-center w-6 h-6 bg-gray-200 text-gray-700 rounded-full font-semibold text-xs mr-2 flex-shrink-0">
+                                                    {String.fromCharCode(65 + cIdx)}
+                                                  </span>
+                                                  <span className="text-gray-700 leading-6">{condition}</span>
+                                                </div>
+                                              ));
+                                            }
+
+                                            const conditionKeys = psfData.condition_keys || [];
+                                            const conditionLabels = psfData.condition_labels || {};
+
+                                            return conditionKeys.map((key: string, idx: number) => {
+                                              const label = (conditionLabels as any)[key] || key;
+                                              const options = (ALL_OPTION_LISTS as any)[key] || [];
+                                              
+                                              return (
+                                                <div key={idx} className="mb-3 pb-3 border-b border-gray-200 last:border-b-0">
+                                                  <div className="font-semibold text-gray-800 mb-1.5 text-sm">
+                                                    {label}
+                                                  </div>
+                                                  <div className="space-y-1">
+                                                    {options.map((option: string, optIdx: number) => (
+                                                      <div key={optIdx} className="flex items-start pl-2">
+                                                        <span className="inline-flex items-center justify-center w-5 h-5 bg-blue-100 text-blue-700 rounded-full font-semibold text-xs mr-2 flex-shrink-0 mt-0.5">
+                                                          {String.fromCharCode(65 + optIdx)}
+                                                        </span>
+                                                        <span className="text-gray-600 text-sm leading-5">{option}</span>
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              );
+                                            });
+                                          })()}
                                         </div>
                                       ) : (
                                         <span className="text-gray-400 italic">조건 없음</span>

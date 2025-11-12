@@ -655,8 +655,8 @@ export default function AdminDashboard() {
                                           <div className="space-y-1.5">
                                             {conditionEntries.map(([label, value], idx) => (
                                               <div key={idx} className="flex items-start">
-                                                <span className="inline-flex items-center bg-gray-700 text-white font-semibold text-xs px-2 py-1 rounded mr-2 whitespace-nowrap">
-                                                  {label}
+                                                <span className="font-semibold text-gray-700 text-sm mr-2 whitespace-nowrap">
+                                                  {label}:
                                                 </span>
                                                 <span className="text-gray-800 text-sm">
                                                   {value as string}

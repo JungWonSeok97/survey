@@ -284,7 +284,9 @@ export default function AdminDashboard() {
           
           {/* 정렬 순서 버튼 */}
           <div className="mt-4 flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-700">정렬 순서:</span>
+            <span className="text-sm font-medium text-gray-700">
+              {sortBy === 'name' ? '이름' : sortBy === 'job' ? '직업' : '근속년수'} 정렬 순서:
+            </span>
             <button
               onClick={() => setSortOrder('asc')}
               className={`px-4 py-2 rounded-md text-sm font-medium ${
@@ -430,202 +432,246 @@ export default function AdminDashboard() {
       {/* 상세보기 모달 */}
       {showDetailModal && selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-gray-900">응답 상세정보</h2>
+          <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            {/* 헤더 */}
+            <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 flex justify-between items-center shadow-md z-10">
+              <div>
+                <h2 className="text-2xl font-bold text-white">응답 상세정보</h2>
+                <p className="text-blue-100 text-sm mt-1">
+                  {selectedUser?.name} ({selectedUser?.employee_id})
+                </p>
+              </div>
               <button
                 onClick={() => {
                   setShowDetailModal(false);
                   setSelectedUser(null);
                 }}
-                className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                className="text-white hover:text-gray-200 transition-colors"
               >
-                ×
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
-            <div className="p-6">
+            <div className="p-6 bg-gray-50">
               {/* 기본 정보 */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">기본 정보</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">이름:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.name || 'N/A'}</p>
+              <div className="mb-6 bg-white rounded-lg shadow-sm p-5">
+                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                  <span className="bg-blue-100 text-blue-700 rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm">
+                    👤
+                  </span>
+                  기본 정보
+                </h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">이름</span>
+                    <p className="text-sm font-medium text-gray-900">{selectedUser?.name || 'N/A'}</p>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">사번:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.employee_id || 'N/A'}</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">사번</span>
+                    <p className="text-sm font-medium text-gray-900">{selectedUser?.employee_id || 'N/A'}</p>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">소속:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.affiliation || 'N/A'}</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">소속</span>
+                    <p className="text-sm font-medium text-gray-900">{selectedUser?.affiliation || 'N/A'}</p>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">직급:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.position || 'N/A'}</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">직급</span>
+                    <p className="text-sm font-medium text-gray-900">{selectedUser?.position || 'N/A'}</p>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">부서:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.department || 'N/A'}</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">부서</span>
+                    <p className="text-sm font-medium text-gray-900">{selectedUser?.department || 'N/A'}</p>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">종사자 구분:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.job || 'N/A'}</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">종사자 구분</span>
+                    <p className="text-sm font-medium text-gray-900">{selectedUser?.job || 'N/A'}</p>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">근속년수:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.years || 0}년</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">근속년수</span>
+                    <p className="text-sm font-medium text-gray-900">{selectedUser?.years || 0}년</p>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">성별:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.gender || 'N/A'}</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">성별</span>
+                    <p className="text-sm font-medium text-gray-900">{selectedUser?.gender || 'N/A'}</p>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">생년월일:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.date_of_birth || 'N/A'}</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">생년월일</span>
+                    <p className="text-sm font-medium text-gray-900">{selectedUser?.date_of_birth || 'N/A'}</p>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">사무실 전화:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.office_phone || 'N/A'}</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">사무실 전화</span>
+                    <p className="text-sm font-medium text-gray-900">{selectedUser?.office_phone || 'N/A'}</p>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">회사 이메일:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.company_email || 'N/A'}</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">회사 이메일</span>
+                    <p className="text-sm font-medium text-gray-900 truncate" title={selectedUser?.company_email}>
+                      {selectedUser?.company_email || 'N/A'}
+                    </p>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">철도자격증:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.railroad_certification || 'N/A'}</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">철도자격증</span>
+                    <p className="text-sm font-medium text-gray-900">{selectedUser?.railroad_certification || 'N/A'}</p>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">직무교육:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.job_education || 'N/A'}</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">직무교육</span>
+                    <p className="text-sm font-medium text-gray-900">{selectedUser?.job_education || 'N/A'}</p>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">건강검진일:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.health_check_date || 'N/A'}</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">건강검진일</span>
+                    <p className="text-sm font-medium text-gray-900">{selectedUser?.health_check_date || 'N/A'}</p>
                   </div>
                 </div>
               </div>
 
               {/* 건강 정보 */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">건강 정보</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">체온:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.body_temperature || 'N/A'}°C</p>
+              <div className="mb-6 bg-white rounded-lg shadow-sm p-5">
+                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                  <span className="bg-green-100 text-green-700 rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm">
+                    💊
+                  </span>
+                  건강 정보
+                </h3>
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">체온</span>
+                    <p className="text-sm font-medium text-gray-900">{selectedUser?.body_temperature || 'N/A'}°C</p>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">수축기 혈압:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.systolic_bp || 'N/A'} mmHg</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">수축기 혈압</span>
+                    <p className="text-sm font-medium text-gray-900">{selectedUser?.systolic_bp || 'N/A'} mmHg</p>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">이완기 혈압:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.diastolic_bp || 'N/A'} mmHg</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">이완기 혈압</span>
+                    <p className="text-sm font-medium text-gray-900">{selectedUser?.diastolic_bp || 'N/A'} mmHg</p>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">맥박:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.pulse || 'N/A'} bpm</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">맥박</span>
+                    <p className="text-sm font-medium text-gray-900">{selectedUser?.pulse || 'N/A'} bpm</p>
                   </div>
                 </div>
               </div>
 
               {/* 근무 정보 */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">근무 정보</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">근무 형태:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.work_type || 'N/A'}</p>
+              <div className="mb-6 bg-white rounded-lg shadow-sm p-5">
+                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                  <span className="bg-purple-100 text-purple-700 rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm">
+                    💼
+                  </span>
+                  근무 정보
+                </h3>
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">근무 형태</span>
+                    <p className="text-sm font-medium text-gray-900">{selectedUser?.work_type || 'N/A'}</p>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">근무 시간:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.work_time || 'N/A'}</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">근무 시간</span>
+                    <p className="text-sm font-medium text-gray-900">{selectedUser?.work_time || 'N/A'}</p>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">사원증 번호:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.employee_card_number || 'N/A'}</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">사원증 번호</span>
+                    <p className="text-sm font-medium text-gray-900">{selectedUser?.employee_card_number || 'N/A'}</p>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">회차:</span>
-                    <p className="text-sm text-gray-900">{selectedUser?.round || 0}회차</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">총 회차</span>
+                    <p className="text-sm font-medium text-gray-900">{selectedUser?.allRounds?.length || 0}회차</p>
                   </div>
                 </div>
               </div>
 
               {/* 모든 회차 설문 응답 */}
               <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">
-                  전체 설문 응답 ({selectedUser?.allRounds?.length || 0}회차)
+                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center bg-white rounded-lg shadow-sm p-5">
+                  <span className="bg-orange-100 text-orange-700 rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm">
+                    📋
+                  </span>
+                  전체 설문 응답
+                  <span className="ml-auto bg-blue-600 text-white px-4 py-1 rounded-full text-sm font-semibold">
+                    총 {selectedUser?.allRounds?.length || 0}회차
+                  </span>
                 </h3>
                 {selectedUser?.allRounds && Array.isArray(selectedUser.allRounds) && selectedUser.allRounds.length > 0 ? (
-                  <div className="space-y-6">
+                  <div className="space-y-5">
                     {selectedUser.allRounds
                       .sort((a: any, b: any) => a.round - b.round)
                       .map((roundData: any, roundIdx: number) => (
-                      <div key={roundIdx} className="border border-gray-300 rounded-lg overflow-hidden">
+                      <div key={roundIdx} className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow">
                         {/* 회차 헤더 */}
-                        <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 flex justify-between items-center">
-                          <h4 className="text-white font-bold text-lg">
-                            {roundData.round}회차
-                          </h4>
-                          <span className="text-white text-sm">
-                            {roundData.saved_at ? new Date(roundData.saved_at).toLocaleString('ko-KR') : 'N/A'}
-                          </span>
+                        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-5 py-4 flex justify-between items-center">
+                          <div className="flex items-center">
+                            <span className="bg-white text-indigo-600 font-bold px-3 py-1 rounded-full text-lg mr-3">
+                              {roundData.round}회차
+                            </span>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-white text-xs opacity-90">응답 일시</p>
+                            <p className="text-white font-semibold text-sm">
+                              {roundData.saved_at ? new Date(roundData.saved_at).toLocaleString('ko-KR', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              }) : 'N/A'}
+                            </p>
+                          </div>
                         </div>
                         
                         {/* 설문 응답 테이블 */}
                         {roundData.questions && Array.isArray(roundData.questions) && roundData.questions.length > 0 ? (
                           <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
-                              <thead className="bg-gray-50">
+                              <thead className="bg-gray-100">
                                 <tr>
-                                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-r w-24">
-                                    PSF
+                                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-300 w-28">
+                                    PSF 번호
                                   </th>
-                                  <th className="px-4 py-2 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-r w-20">
-                                    답변
+                                  <th className="px-5 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider border-r border-gray-300 w-24">
+                                    선택 답변
                                   </th>
-                                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                                    조건
+                                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                    설문 조건
                                   </th>
                                 </tr>
                               </thead>
                               <tbody className="bg-white divide-y divide-gray-200">
                                 {roundData.questions.map((q: any, qIdx: number) => (
-                                  <tr key={qIdx} className="hover:bg-gray-50">
-                                    <td className="px-4 py-3 text-sm font-bold text-blue-600 border-r">
-                                      PSF {q?.id || 'N/A'}
+                                  <tr key={qIdx} className="hover:bg-blue-50 transition-colors">
+                                    <td className="px-5 py-4 border-r border-gray-200">
+                                      <span className="inline-flex items-center px-3 py-1 rounded-lg bg-blue-100 text-blue-800 font-bold text-sm">
+                                        PSF {q?.id || 'N/A'}
+                                      </span>
                                     </td>
-                                    <td className="px-4 py-3 text-center border-r">
-                                      <span className="inline-block px-3 py-1 bg-green-500 text-white rounded-full font-bold text-sm">
+                                    <td className="px-5 py-4 text-center border-r border-gray-200">
+                                      <span className="inline-flex items-center justify-center w-10 h-10 bg-gradient-to-br from-green-400 to-green-600 text-white rounded-full font-bold text-lg shadow-md">
                                         {q?.answer || 'N/A'}
                                       </span>
                                     </td>
-                                    <td className="px-4 py-3 text-sm">
+                                    <td className="px-5 py-4">
                                       {(() => {
                                         // 저장된 conditions 객체에서 실제 선택된 조건만 표시
                                         const savedConditions = q?.conditions;
                                         
                                         if (!savedConditions || typeof savedConditions !== 'object') {
-                                          return <span className="text-gray-400 italic">조건 없음</span>;
+                                          return <span className="text-gray-400 italic text-sm">조건 없음</span>;
                                         }
 
                                         const conditionEntries = Object.entries(savedConditions);
                                         
                                         if (conditionEntries.length === 0) {
-                                          return <span className="text-gray-400 italic">조건 없음</span>;
+                                          return <span className="text-gray-400 italic text-sm">조건 없음</span>;
                                         }
 
                                         return (
                                           <div className="space-y-2">
                                             {conditionEntries.map(([label, value], idx) => (
-                                              <div key={idx} className="flex items-start">
-                                                <span className="font-semibold text-gray-700 mr-2 whitespace-nowrap">
-                                                  {label}:
+                                              <div key={idx} className="flex items-start bg-gray-50 p-2 rounded-lg">
+                                                <span className="inline-flex items-center justify-center bg-indigo-600 text-white font-bold text-xs px-2 py-1 rounded mr-2 whitespace-nowrap">
+                                                  {label}
                                                 </span>
-                                                <span className="text-gray-600">
+                                                <span className="text-gray-800 font-medium text-sm">
                                                   {value as string}
                                                 </span>
                                               </div>

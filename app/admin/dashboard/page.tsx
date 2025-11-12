@@ -37,6 +37,13 @@ export default function AdminDashboard() {
     } else {
       setIsLoggedIn(true);
       fetchSurveyData();
+      
+      // 30초마다 자동 새로고침
+      const interval = setInterval(() => {
+        fetchSurveyData();
+      }, 30000); // 30초
+      
+      return () => clearInterval(interval);
     }
   }, [router]);
 
@@ -161,12 +168,21 @@ export default function AdminDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">설문 결과 관리</h1>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"
-            >
-              로그아웃
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => fetchSurveyData()}
+                disabled={isLoading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isLoading ? '로딩 중...' : '🔄 새로고침'}
+              </button>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"
+              >
+                로그아웃
+              </button>
+            </div>
           </div>
         </div>
       </header>

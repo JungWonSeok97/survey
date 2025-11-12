@@ -1,5 +1,5 @@
 // 서비스 워커 설정
-const CACHE_NAME = 'survey-app-v7';
+const CACHE_NAME = 'survey-app-v8';
 const urlsToCache = [
   '/',
   '/survey',
@@ -45,6 +45,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Supabase API 요청은 절대 캐시하지 않음 (항상 네트워크)
+  if (url.hostname.includes('supabase.co')) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   // API 요청은 네트워크 우선
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
@@ -70,7 +76,7 @@ self.addEventListener('fetch', (event) => {
         })
     );
   } else {
-    // HTML 페이지는 네트워크 우선 (항상 최신 버전)
+    // HTML 페이지 (admin 페이지 포함)는 네트워크 우선 (항상 최신 버전)
     if (request.headers.get('accept').includes('text/html')) {
       event.respondWith(
         fetch(request)

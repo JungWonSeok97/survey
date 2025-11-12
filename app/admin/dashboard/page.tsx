@@ -395,7 +395,7 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
-                          className="text-blue-600 hover:text-blue-900 mr-3"
+                          className="text-blue-600 hover:text-blue-900"
                           onClick={() => {
                             // 해당 사용자의 모든 회차 데이터 찾기
                             const userAllRounds = surveyData.filter(
@@ -409,12 +409,6 @@ export default function AdminDashboard() {
                           }}
                         >
                           상세보기
-                        </button>
-                        <button
-                          className="text-green-600 hover:text-green-900"
-                          onClick={() => alert(`데이터 다운로드 (구현 예정)`)}
-                        >
-                          다운로드
                         </button>
                       </td>
                     </tr>

@@ -1,5 +1,5 @@
 // 서비스 워커 설정
-const CACHE_NAME = 'survey-app-v5';
+const CACHE_NAME = 'survey-app-v6';
 const urlsToCache = [
   '/',
   '/survey',
@@ -38,6 +38,12 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
+
+  // HEAD, POST, PUT, DELETE 요청은 캐시하지 않음
+  if (request.method !== 'GET') {
+    event.respondWith(fetch(request));
+    return;
+  }
 
   // API 요청은 네트워크 우선
   if (url.pathname.startsWith('/api/')) {

@@ -341,6 +341,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
       if (!response.ok) {
         const errorData = await response.json();
         console.error('API Error:', errorData);
+        console.error('Error details:', JSON.stringify(errorData, null, 2));
         throw new Error(errorData.error || errorData.message || '저장 실패');
       }
 
@@ -360,6 +361,9 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
         setCompleted(true);
       }
     } catch (err) {
+      console.error('Survey save error:', err);
+      console.error('Error type:', typeof err);
+      console.error('Error details:', err);
       setError('저장 중 오류가 발생했습니다.');
     }
   };

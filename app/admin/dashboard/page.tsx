@@ -39,13 +39,6 @@ export default function AdminDashboard() {
     } else {
       setIsLoggedIn(true);
       fetchSurveyData();
-      
-      // 30초마다 자동 새로고침
-      const interval = setInterval(() => {
-        fetchSurveyData();
-      }, 30000); // 30초
-      
-      return () => clearInterval(interval);
     }
   }, [router]);
 

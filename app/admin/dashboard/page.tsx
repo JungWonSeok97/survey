@@ -456,59 +456,59 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <span className="text-sm font-medium text-gray-500">이름:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.name}</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.name || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">사번:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.employee_id}</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.employee_id || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">소속:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.affiliation}</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.affiliation || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">직급:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.position}</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.position || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">부서:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.department}</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.department || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">종사자 구분:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.job}</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.job || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">근속년수:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.years}년</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.years || 0}년</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">성별:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.gender || 'N/A'}</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.gender || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">생년월일:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.date_of_birth || 'N/A'}</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.date_of_birth || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">사무실 전화:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.office_phone || 'N/A'}</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.office_phone || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">회사 이메일:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.company_email || 'N/A'}</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.company_email || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">철도자격증:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.railroad_certification || 'N/A'}</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.railroad_certification || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">직무교육:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.job_education || 'N/A'}</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.job_education || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">건강검진일:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.health_check_date || 'N/A'}</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.health_check_date || 'N/A'}</p>
                   </div>
                 </div>
               </div>
@@ -519,19 +519,19 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <span className="text-sm font-medium text-gray-500">체온:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.body_temperature || 'N/A'}°C</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.body_temperature || 'N/A'}°C</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">수축기 혈압:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.systolic_bp || 'N/A'} mmHg</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.systolic_bp || 'N/A'} mmHg</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">이완기 혈압:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.diastolic_bp || 'N/A'} mmHg</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.diastolic_bp || 'N/A'} mmHg</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">맥박:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.pulse || 'N/A'} bpm</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.pulse || 'N/A'} bpm</p>
                   </div>
                 </div>
               </div>
@@ -542,19 +542,19 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <span className="text-sm font-medium text-gray-500">근무 형태:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.work_type || 'N/A'}</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.work_type || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">근무 시간:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.work_time || 'N/A'}</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.work_time || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">사원증 번호:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.employee_card_number || 'N/A'}</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.employee_card_number || 'N/A'}</p>
                   </div>
                   <div>
                     <span className="text-sm font-medium text-gray-500">회차:</span>
-                    <p className="text-sm text-gray-900">{selectedUser.round}회차</p>
+                    <p className="text-sm text-gray-900">{selectedUser?.round || 0}회차</p>
                   </div>
                 </div>
               </div>
@@ -562,17 +562,17 @@ export default function AdminDashboard() {
               {/* 설문 응답 */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">설문 응답 (Questions JSON)</h3>
-                {selectedUser.questions && selectedUser.questions.length > 0 ? (
+                {selectedUser.questions && Array.isArray(selectedUser.questions) && selectedUser.questions.length > 0 ? (
                   <div className="space-y-4">
                     {selectedUser.questions.map((q: any, idx: number) => (
                       <div key={idx} className="bg-gray-50 p-4 rounded-lg">
                         <div className="mb-2">
                           <span className="text-sm font-semibold text-blue-600">
-                            {q.number} PSF {q.id}
+                            {q?.number || 'N/A'} PSF {q?.id || 'N/A'}
                           </span>
                         </div>
                         <div className="space-y-2">
-                          {q.conditions && q.conditions.map((condition: string, cIdx: number) => (
+                          {q?.conditions && Array.isArray(q.conditions) && q.conditions.map((condition: string, cIdx: number) => (
                             <div key={cIdx} className="flex items-start">
                               <span className="text-sm text-gray-700 mr-3 font-medium">
                                 {String.fromCharCode(65 + cIdx)}.
@@ -584,7 +584,7 @@ export default function AdminDashboard() {
                         <div className="mt-3 pt-3 border-t border-gray-300">
                           <span className="text-sm font-medium text-gray-500">선택한 답변: </span>
                           <span className="text-sm font-bold text-green-700">
-                            {q.answer || 'N/A'}
+                            {q?.answer || 'N/A'}
                           </span>
                         </div>
                       </div>
@@ -599,7 +599,7 @@ export default function AdminDashboard() {
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">JSON Raw Data</h3>
                 <pre className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-xs">
-                  {JSON.stringify(selectedUser.questions, null, 2)}
+                  {JSON.stringify(selectedUser?.questions || {}, null, 2)}
                 </pre>
               </div>
             </div>

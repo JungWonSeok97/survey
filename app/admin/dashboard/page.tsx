@@ -133,10 +133,8 @@ export default function AdminDashboard() {
     if (!acc[key]) {
       acc[key] = {
         ...item,
-        totalRounds: 1,
+        totalRounds: filteredData.filter(d => `${d.name}_${d.employee_id}` === key).length,
       };
-    } else {
-      acc[key].totalRounds += 1;
     }
     return acc;
   }, {} as Record<string, any>);

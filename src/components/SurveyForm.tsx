@@ -348,7 +348,8 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
       console.log('Save success:', result);
 
       if (currentRound < TOTAL_ROUNDS) {
-        alert(`${currentRound}/${TOTAL_ROUNDS}회 완료 및 저장되었습니다.`);
+        // URL 없이 깔끔하게 alert 표시
+        window.alert(`${currentRound}/${TOTAL_ROUNDS}회 완료 및 저장되었습니다.`);
         const allRadios = document.querySelectorAll('input[type="radio"]');
         allRadios.forEach((radio) => {
           (radio as HTMLInputElement).checked = false;
@@ -356,7 +357,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
         window.scrollTo({ top: 0, behavior: 'smooth' });
         setCurrentRound(currentRound + 1);
       } else {
-        alert('모든 설문이 완료되었습니다. 감사합니다!');
+        window.alert('모든 설문이 완료되었습니다. 감사합니다!');
         setCompleted(true);
       }
     } catch (err) {

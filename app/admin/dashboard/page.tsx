@@ -12,7 +12,7 @@ interface SurveyData {
   job: string;
   years: number;
   round: number;
-  created_at: string;
+  saved_at: string;
   employee_id: string;
   position: string;
   department: string;
@@ -55,7 +55,7 @@ export default function AdminDashboard() {
       const { data, error } = await supabase
         .from('survey_responses')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('saved_at', { ascending: false });
 
       if (error) {
         console.error('Supabase error:', error);
@@ -76,7 +76,7 @@ export default function AdminDashboard() {
           job: item.job,
           years: parseInt(item.years) || 0,
           round: item.round,
-          created_at: item.created_at,
+          saved_at: item.saved_at,
           employee_id: item.employee_id || 'N/A',
           position: item.position || 'N/A',
           department: item.department || 'N/A',
@@ -201,7 +201,7 @@ export default function AdminDashboard() {
             <h3 className="text-sm font-medium text-gray-500 mb-2">최근 응답</h3>
             <p className="text-sm font-semibold text-gray-700">
               {surveyData.length > 0 
-                ? new Date(surveyData[0]?.created_at).toLocaleDateString('ko-KR')
+                ? new Date(surveyData[0]?.saved_at).toLocaleDateString('ko-KR')
                 : 'N/A'}
             </p>
           </div>
@@ -363,7 +363,7 @@ export default function AdminDashboard() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(user.created_at).toLocaleString('ko-KR')}
+                        {new Date(user.saved_at).toLocaleString('ko-KR')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button

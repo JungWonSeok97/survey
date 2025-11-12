@@ -327,7 +327,6 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
           workTime,
           employeeCardNumber,
           round: currentRound,
-          surveyGroup: groupName,
           selectedQuestions: questionIds,
           questions: questions.map((q) => ({
             id: q.id,

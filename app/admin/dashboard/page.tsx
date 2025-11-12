@@ -11,7 +11,6 @@ interface SurveyData {
   affiliation: string;
   job: string;
   years: number;
-  survey_group: string;
   round: number;
   created_at: string;
   employee_id: string;
@@ -24,7 +23,6 @@ export default function AdminDashboard() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterJob, setFilterJob] = useState('전체');
-  const [filterGroup, setFilterGroup] = useState('전체');
   const [sortBy, setSortBy] = useState<'name' | 'job' | 'years'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [surveyData, setSurveyData] = useState<SurveyData[]>([]);
@@ -77,7 +75,6 @@ export default function AdminDashboard() {
           affiliation: item.affiliation,
           job: item.job,
           years: parseInt(item.years) || 0,
-          survey_group: item.survey_group || 'N/A',
           round: item.round,
           created_at: item.created_at,
           employee_id: item.employee_id || 'N/A',
@@ -107,9 +104,8 @@ export default function AdminDashboard() {
       item.affiliation.includes(searchTerm) ||
       item.employee_id.includes(searchTerm);
     const matchJob = filterJob === '전체' || item.job === filterJob;
-    const matchGroup = filterGroup === '전체' || item.survey_group === filterGroup;
     
-    return matchSearch && matchJob && matchGroup;
+    return matchSearch && matchJob;
   });
 
   // 사용자별로 그룹화 (이름 + 사번으로 구분)
@@ -244,22 +240,6 @@ export default function AdminDashboard() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                설문 그룹
-              </label>
-              <select
-                value={filterGroup}
-                onChange={(e) => setFilterGroup(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="전체">전체</option>
-                <option value="Group 1">Group 1</option>
-                <option value="Group 2">Group 2</option>
-                <option value="Group 3">Group 3</option>
-                <option value="Group 4">Group 4</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
                 정렬 기준
               </label>
               <select
@@ -328,9 +308,6 @@ export default function AdminDashboard() {
                     근속년수
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    그룹
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     완료 회차
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -373,11 +350,6 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{user.years}년</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                          {user.survey_group}
-                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">

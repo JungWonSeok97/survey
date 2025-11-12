@@ -605,44 +605,31 @@ export default function AdminDashboard() {
                                     </td>
                                     <td className="px-4 py-3 text-sm">
                                       {(() => {
-                                        // PSF 정보 가져오기
-                                        const psfData = SURVEY_DATA.find(psf => psf.id === q?.id);
+                                        // 저장된 conditions 객체에서 실제 선택된 조건만 표시
+                                        const savedConditions = q?.conditions;
                                         
-                                        if (!psfData) {
-                                          return <span className="text-gray-400 italic">PSF 데이터를 찾을 수 없습니다</span>;
+                                        if (!savedConditions || typeof savedConditions !== 'object') {
+                                          return <span className="text-gray-400 italic">조건 없음</span>;
                                         }
 
-                                        const conditionKeys = psfData.condition_keys || [];
-                                        const conditionLabels = psfData.condition_labels || {};
-
-                                        if (conditionKeys.length === 0) {
+                                        const conditionEntries = Object.entries(savedConditions);
+                                        
+                                        if (conditionEntries.length === 0) {
                                           return <span className="text-gray-400 italic">조건 없음</span>;
                                         }
 
                                         return (
                                           <div className="space-y-2">
-                                            {conditionKeys.map((key: string, idx: number) => {
-                                              const label = (conditionLabels as any)[key] || key;
-                                              const options = (ALL_OPTION_LISTS as any)[key] || [];
-                                              
-                                              return (
-                                                <div key={idx} className="mb-3 pb-3 border-b border-gray-200 last:border-b-0">
-                                                  <div className="font-semibold text-gray-800 mb-1.5 text-sm">
-                                                    {label}
-                                                  </div>
-                                                  <div className="space-y-1">
-                                                    {options.map((option: string, optIdx: number) => (
-                                                      <div key={optIdx} className="flex items-start pl-2">
-                                                        <span className="inline-flex items-center justify-center w-5 h-5 bg-blue-100 text-blue-700 rounded-full font-semibold text-xs mr-2 flex-shrink-0 mt-0.5">
-                                                          {String.fromCharCode(65 + optIdx)}
-                                                        </span>
-                                                        <span className="text-gray-600 text-sm leading-5">{option}</span>
-                                                      </div>
-                                                    ))}
-                                                  </div>
-                                                </div>
-                                              );
-                                            })}
+                                            {conditionEntries.map(([label, value], idx) => (
+                                              <div key={idx} className="flex items-start">
+                                                <span className="font-semibold text-gray-700 mr-2 whitespace-nowrap">
+                                                  {label}:
+                                                </span>
+                                                <span className="text-gray-600">
+                                                  {value as string}
+                                                </span>
+                                              </div>
+                                            ))}
                                           </div>
                                         );
                                       })()}

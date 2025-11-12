@@ -28,6 +28,8 @@ export default function AdminDashboard() {
   const [surveyData, setSurveyData] = useState<SurveyData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
     // 로그인 확인
@@ -75,7 +77,7 @@ export default function AdminDashboard() {
         setError(`데이터를 불러오는데 실패했습니다: ${error.message}`);
         setSurveyData([]); // 에러시 빈 배열
       } else {
-        // Supabase 데이터를 UI 형식에 맞게 변환
+        // Supabase 데이터를 UI 형식에 맞게 변환 (questions 포함)
         const formattedData = (data || []).map((item: any) => ({
           id: item.id,
           name: item.name,
@@ -87,6 +89,22 @@ export default function AdminDashboard() {
           employee_id: item.employee_id || 'N/A',
           position: item.position || 'N/A',
           department: item.department || 'N/A',
+          questions: item.questions || [], // questions 데이터 포함
+          // 모든 필드 포함
+          gender: item.gender,
+          date_of_birth: item.date_of_birth,
+          office_phone: item.office_phone,
+          company_email: item.company_email,
+          railroad_certification: item.railroad_certification,
+          job_education: item.job_education,
+          health_check_date: item.health_check_date,
+          body_temperature: item.body_temperature,
+          systolic_bp: item.systolic_bp,
+          diastolic_bp: item.diastolic_bp,
+          pulse: item.pulse,
+          work_type: item.work_type,
+          work_time: item.work_time,
+          employee_card_number: item.employee_card_number,
         }));
         setSurveyData(formattedData);
       }
@@ -384,7 +402,10 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
                           className="text-blue-600 hover:text-blue-900 mr-3"
-                          onClick={() => alert(`${user.name}님의 상세 정보 (구현 예정)`)}
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setShowDetailModal(true);
+                          }}
                         >
                           상세보기
                         </button>
@@ -410,6 +431,193 @@ export default function AdminDashboard() {
           </div>
         </div>
       </main>
+
+      {/* 상세보기 모달 */}
+      {showDetailModal && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">응답 상세정보</h2>
+              <button
+                onClick={() => {
+                  setShowDetailModal(false);
+                  setSelectedUser(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-6">
+              {/* 기본 정보 */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">기본 정보</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">이름:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.name}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">사번:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.employee_id}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">소속:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.affiliation}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">직급:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.position}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">부서:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.department}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">종사자 구분:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.job}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">근속년수:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.years}년</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">성별:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.gender || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">생년월일:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.date_of_birth || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">사무실 전화:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.office_phone || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">회사 이메일:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.company_email || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">철도자격증:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.railroad_certification || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">직무교육:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.job_education || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">건강검진일:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.health_check_date || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 건강 정보 */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">건강 정보</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">체온:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.body_temperature || 'N/A'}°C</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">수축기 혈압:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.systolic_bp || 'N/A'} mmHg</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">이완기 혈압:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.diastolic_bp || 'N/A'} mmHg</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">맥박:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.pulse || 'N/A'} bpm</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 근무 정보 */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">근무 정보</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">근무 형태:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.work_type || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">근무 시간:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.work_time || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">사원증 번호:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.employee_card_number || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">회차:</span>
+                    <p className="text-sm text-gray-900">{selectedUser.round}회차</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 설문 응답 */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">설문 응답 (Questions JSON)</h3>
+                {selectedUser.questions && selectedUser.questions.length > 0 ? (
+                  <div className="space-y-4">
+                    {selectedUser.questions.map((q: any, idx: number) => (
+                      <div key={idx} className="bg-gray-50 p-4 rounded-lg">
+                        <div className="mb-2">
+                          <span className="text-sm font-semibold text-blue-600">
+                            {q.number} PSF {q.id}
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {q.conditions && q.conditions.map((condition: string, cIdx: number) => (
+                            <div key={cIdx} className="flex items-start">
+                              <span className="text-sm text-gray-700 mr-3 font-medium">
+                                {String.fromCharCode(65 + cIdx)}.
+                              </span>
+                              <span className="text-sm text-gray-700">{condition}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-gray-300">
+                          <span className="text-sm font-medium text-gray-500">선택한 답변: </span>
+                          <span className="text-sm font-bold text-green-700">
+                            {q.answer || 'N/A'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">설문 응답 데이터가 없습니다.</p>
+                )}
+              </div>
+
+              {/* JSON Raw 데이터 */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">JSON Raw Data</h3>
+                <pre className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-xs">
+                  {JSON.stringify(selectedUser.questions, null, 2)}
+                </pre>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end">
+              <button
+                onClick={() => {
+                  setShowDetailModal(false);
+                  setSelectedUser(null);
+                }}
+                className="px-6 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

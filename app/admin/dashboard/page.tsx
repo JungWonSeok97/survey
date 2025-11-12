@@ -588,12 +588,66 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              {/* JSON Raw 데이터 */}
+              {/* 설문 응답 상세 테이블 */}
               <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">JSON Raw Data</h3>
-                <pre className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-xs">
-                  {JSON.stringify(selectedUser?.questions || {}, null, 2)}
-                </pre>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3 border-b pb-2">설문 응답 상세 데이터</h3>
+                {selectedUser?.questions && Array.isArray(selectedUser.questions) && selectedUser.questions.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 border border-gray-300">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r">
+                            PSF ID
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r">
+                            번호
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r">
+                            선택 답변
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                            조건 내용
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {selectedUser.questions.map((q: any, idx: number) => (
+                          <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-blue-600 border-r">
+                              {q?.id || 'N/A'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 border-r">
+                              {q?.number || 'N/A'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm border-r">
+                              <span className="px-2 py-1 bg-green-100 text-green-800 rounded font-bold">
+                                {q?.answer || 'N/A'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700">
+                              {q?.conditions && Array.isArray(q.conditions) ? (
+                                <ul className="space-y-1">
+                                  {q.conditions.map((condition: string, cIdx: number) => (
+                                    <li key={cIdx} className="flex items-start">
+                                      <span className="font-semibold mr-2 text-gray-600">
+                                        {String.fromCharCode(65 + cIdx)}.
+                                      </span>
+                                      <span>{condition}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <span className="text-gray-400">조건 없음</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">설문 응답 데이터가 없습니다.</p>
+                )}
               </div>
             </div>
 

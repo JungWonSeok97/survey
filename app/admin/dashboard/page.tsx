@@ -604,26 +604,24 @@ export default function AdminDashboard() {
                                       </span>
                                     </td>
                                     <td className="px-4 py-3 text-sm">
-                                      {q?.conditions && Array.isArray(q.conditions) ? (
-                                        <div className="space-y-2">
-                                          {/* PSF 정보 가져오기 */}
-                                          {(() => {
-                                            const psfData = SURVEY_DATA.find(psf => psf.id === q.id);
-                                            if (!psfData) {
-                                              return q.conditions.map((condition: string, cIdx: number) => (
-                                                <div key={cIdx} className="flex items-start">
-                                                  <span className="inline-flex items-center justify-center w-6 h-6 bg-gray-200 text-gray-700 rounded-full font-semibold text-xs mr-2 flex-shrink-0">
-                                                    {String.fromCharCode(65 + cIdx)}
-                                                  </span>
-                                                  <span className="text-gray-700 leading-6">{condition}</span>
-                                                </div>
-                                              ));
-                                            }
+                                      {(() => {
+                                        // PSF 정보 가져오기
+                                        const psfData = SURVEY_DATA.find(psf => psf.id === q?.id);
+                                        
+                                        if (!psfData) {
+                                          return <span className="text-gray-400 italic">PSF 데이터를 찾을 수 없습니다</span>;
+                                        }
 
-                                            const conditionKeys = psfData.condition_keys || [];
-                                            const conditionLabels = psfData.condition_labels || {};
+                                        const conditionKeys = psfData.condition_keys || [];
+                                        const conditionLabels = psfData.condition_labels || {};
 
-                                            return conditionKeys.map((key: string, idx: number) => {
+                                        if (conditionKeys.length === 0) {
+                                          return <span className="text-gray-400 italic">조건 없음</span>;
+                                        }
+
+                                        return (
+                                          <div className="space-y-2">
+                                            {conditionKeys.map((key: string, idx: number) => {
                                               const label = (conditionLabels as any)[key] || key;
                                               const options = (ALL_OPTION_LISTS as any)[key] || [];
                                               
@@ -644,12 +642,10 @@ export default function AdminDashboard() {
                                                   </div>
                                                 </div>
                                               );
-                                            });
-                                          })()}
-                                        </div>
-                                      ) : (
-                                        <span className="text-gray-400 italic">조건 없음</span>
-                                      )}
+                                            })}
+                                          </div>
+                                        );
+                                      })()}
                                     </td>
                                   </tr>
                                 ))}

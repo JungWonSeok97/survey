@@ -627,12 +627,12 @@ export default function AdminDashboard() {
                                 {roundData.questions.map((q: any, qIdx: number) => (
                                   <tr key={qIdx} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-5 py-4 border-r border-gray-200">
-                                      <span className="inline-flex items-center px-3 py-1 rounded-md bg-gray-100 text-gray-800 font-semibold text-sm">
+                                      <span className="font-semibold text-gray-800 text-sm">
                                         PSF {q?.id || 'N/A'}
                                       </span>
                                     </td>
                                     <td className="px-5 py-4 text-center border-r border-gray-200">
-                                      <span className="inline-flex items-center justify-center w-9 h-9 bg-gray-800 text-white rounded-md font-bold text-base">
+                                      <span className="font-bold text-gray-800 text-lg">
                                         {q?.answer || 'N/A'}
                                       </span>
                                     </td>

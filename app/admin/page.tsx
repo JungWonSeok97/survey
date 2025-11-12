@@ -58,12 +58,6 @@ export default function AdminLoginPage() {
             로그인
           </button>
         </form>
-
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-500">
-            임시 비밀번호: admin1234
-          </p>
-        </div>
       </div>
     </div>
   );

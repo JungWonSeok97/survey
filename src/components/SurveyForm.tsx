@@ -19,6 +19,7 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
   const [completed, setCompleted] = useState(false);
   const [error, setError] = useState('');
   const [isInfoFormFilled, setIsInfoFormFilled] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 새로 추가된 필드들
   const [employeeId, setEmployeeId] = useState('');
@@ -283,6 +284,9 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
 
   const handleComplete = async () => {
     if (!validateInputs()) return;
+    if (isSubmitting) return; // 중복 클릭 방지
+
+    setIsSubmitting(true);
 
     const questionElements = document.querySelectorAll('[data-question-id]');
     const answers: Record<string, string> = {};
@@ -365,6 +369,8 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
       console.error('Error type:', typeof err);
       console.error('Error details:', err);
       setError('저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -734,14 +740,14 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
             <div className="flex gap-4 justify-end pt-8 border-t">
               <button
                 onClick={handleComplete}
-                disabled={completed}
+                disabled={completed || isSubmitting}
                 className={`px-6 py-2 rounded-md font-medium ${
-                  completed
+                  completed || isSubmitting
                     ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
                     : 'bg-blue-600 text-white hover:bg-blue-700'
                 }`}
               >
-                완료
+                {isSubmitting ? '저장 중...' : '완료'}
               </button>
             </div>
 

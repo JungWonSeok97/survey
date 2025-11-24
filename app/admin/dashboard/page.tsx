@@ -561,10 +561,44 @@ export default function AdminDashboard() {
                   </h3>
                 </div>
                 {selectedUser?.allRounds && Array.isArray(selectedUser.allRounds) && selectedUser.allRounds.length > 0 ? (
-                  <div className="space-y-4">
-                    {selectedUser.allRounds
-                      .sort((a: any, b: any) => a.round - b.round)
-                      .map((roundData: any, roundIdx: number) => (
+                  <div className="space-y-6">
+                    {/* 그룹별로 데이터 분류 */}
+                    {(() => {
+                      // 회차를 그룹별로 분류 (1-30: 그룹1, 31-60: 그룹2, 61-90: 그룹3, 91-120: 그룹4)
+                      const groupedByRange = selectedUser.allRounds.reduce((acc: any, roundData: any) => {
+                        const round = roundData.round;
+                        let groupNum;
+                        if (round >= 1 && round <= 30) groupNum = 1;
+                        else if (round >= 31 && round <= 60) groupNum = 2;
+                        else if (round >= 61 && round <= 90) groupNum = 3;
+                        else if (round >= 91 && round <= 120) groupNum = 4;
+                        else groupNum = Math.ceil(round / 30); // 120 초과하는 경우 대비
+                        
+                        if (!acc[groupNum]) acc[groupNum] = [];
+                        acc[groupNum].push(roundData);
+                        return acc;
+                      }, {});
+
+                      // 그룹 번호 순서대로 정렬
+                      const sortedGroups = Object.keys(groupedByRange).sort((a, b) => Number(a) - Number(b));
+
+                      return sortedGroups.map((groupNum) => {
+                        const groupRounds = groupedByRange[groupNum].sort((a: any, b: any) => a.round - b.round);
+                        return (
+                          <div key={groupNum} className="border-2 border-blue-300 rounded-lg overflow-hidden">
+                            {/* 그룹 헤더 */}
+                            <div className="bg-blue-600 px-5 py-3">
+                              <h4 className="text-white font-bold text-lg flex items-center justify-between">
+                                <span>🔷 그룹 {groupNum}</span>
+                                <span className="bg-white text-blue-600 px-3 py-1 rounded-md text-sm font-semibold">
+                                  {groupRounds.length}회차
+                                </span>
+                              </h4>
+                            </div>
+                            
+                            {/* 그룹 내 회차들 */}
+                            <div className="p-4 space-y-4 bg-blue-50">
+                              {groupRounds.map((roundData: any, roundIdx: number) => (
                       <div key={roundIdx} className="bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm">
                         {/* 회차 헤더 */}
                         <div className="bg-gray-700 px-5 py-3 flex justify-between items-center">
@@ -659,6 +693,11 @@ export default function AdminDashboard() {
                         )}
                       </div>
                     ))}
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 ) : (
                   <p className="text-sm text-gray-500">설문 응답 데이터가 없습니다.</p>

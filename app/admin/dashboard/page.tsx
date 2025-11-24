@@ -51,65 +51,82 @@ export default function AdminDashboard() {
         hasKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       });
 
-      const { data, error } = await supabase
-        .from('survey_responses')
-        .select('*', { count: 'exact' })
-        .order('saved_at', { ascending: false })
-        .range(0, 9999); // 최대 10,000개까지 조회
+      // 모든 데이터를 가져오기 위해 페이지네이션 사용
+      let allData: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('survey_responses')
+          .select('*')
+          .order('saved_at', { ascending: false })
+          .range(from, from + pageSize - 1);
+
+        if (error) {
+          console.error('Supabase error:', error);
+          console.error('Error details:', {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code
+          });
+          setError(`데이터를 불러오는데 실패했습니다: ${error.message}`);
+          setSurveyData([]);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          from += pageSize;
+          hasMore = data.length === pageSize; // 1000개 미만이면 마지막 페이지
+        } else {
+          hasMore = false;
+        }
+      }
 
       console.log('📊 Supabase 조회 결과:', {
-        총_레코드_수: data?.length,
-        에러_여부: !!error,
+        총_레코드_수: allData.length,
+        페이지_수: Math.ceil(allData.length / pageSize),
       });
 
-      if (error) {
-        console.error('Supabase error:', error);
-        console.error('Error details:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-        setError(`데이터를 불러오는데 실패했습니다: ${error.message}`);
-        setSurveyData([]); // 에러시 빈 배열
-      } else {
-        // Supabase 데이터를 UI 형식에 맞게 변환 (questions 포함)
-        const formattedData = (data || []).map((item: any) => ({
-          id: item.id,
-          name: item.name,
-          affiliation: item.affiliation,
-          job: item.job,
-          years: parseInt(item.years) || 0,
-          round: item.round,
-          saved_at: item.saved_at,
-          employee_id: item.employee_id || 'N/A',
-          position: item.position || 'N/A',
-          department: item.department || 'N/A',
-          questions: item.questions || [], // questions 데이터 포함
-          // 모든 필드 포함
-          gender: item.gender,
-          date_of_birth: item.date_of_birth,
-          office_phone: item.office_phone,
-          company_email: item.company_email,
-          railroad_certification: item.railroad_certification,
-          job_education: item.job_education,
-          health_check_date: item.health_check_date,
-          body_temperature: item.body_temperature,
-          systolic_bp: item.systolic_bp,
-          diastolic_bp: item.diastolic_bp,
-          pulse: item.pulse,
-          work_type: item.work_type,
-          work_time: item.work_time,
-          employee_card_number: item.employee_card_number,
-        }));
-        
-        console.log('✅ 데이터 변환 완료:', {
-          변환된_데이터_수: formattedData.length,
-          고유_사용자_수: new Set(formattedData.map(d => `${d.name}_${d.employee_id}`)).size,
-        });
-        
-        setSurveyData(formattedData);
-      }
+      // Supabase 데이터를 UI 형식에 맞게 변환 (questions 포함)
+      const formattedData = (allData || []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        affiliation: item.affiliation,
+        job: item.job,
+        years: parseInt(item.years) || 0,
+        round: item.round,
+        saved_at: item.saved_at,
+        employee_id: item.employee_id || 'N/A',
+        position: item.position || 'N/A',
+        department: item.department || 'N/A',
+        questions: item.questions || [], // questions 데이터 포함
+        // 모든 필드 포함
+        gender: item.gender,
+        date_of_birth: item.date_of_birth,
+        office_phone: item.office_phone,
+        company_email: item.company_email,
+        railroad_certification: item.railroad_certification,
+        job_education: item.job_education,
+        health_check_date: item.health_check_date,
+        body_temperature: item.body_temperature,
+        systolic_bp: item.systolic_bp,
+        diastolic_bp: item.diastolic_bp,
+        pulse: item.pulse,
+        work_type: item.work_type,
+        work_time: item.work_time,
+        employee_card_number: item.employee_card_number,
+      }));
+      
+      console.log('✅ 데이터 변환 완료:', {
+        변환된_데이터_수: formattedData.length,
+        고유_사용자_수: new Set(formattedData.map((d: any) => `${d.name}_${d.employee_id}`)).size,
+      });
+      
+      setSurveyData(formattedData);
     } catch (err) {
       console.error('Fetch error:', err);
       setError('데이터를 불러오는 중 오류가 발생했습니다.');

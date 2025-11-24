@@ -53,8 +53,9 @@ export default function AdminDashboard() {
 
       const { data, error } = await supabase
         .from('survey_responses')
-        .select('*')
-        .order('saved_at', { ascending: false });
+        .select('*', { count: 'exact' })
+        .order('saved_at', { ascending: false })
+        .range(0, 9999); // 최대 10,000개까지 조회
 
       console.log('📊 Supabase 조회 결과:', {
         총_레코드_수: data?.length,

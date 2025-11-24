@@ -56,6 +56,11 @@ export default function AdminDashboard() {
         .select('*')
         .order('saved_at', { ascending: false });
 
+      console.log('📊 Supabase 조회 결과:', {
+        총_레코드_수: data?.length,
+        에러_여부: !!error,
+      });
+
       if (error) {
         console.error('Supabase error:', error);
         console.error('Error details:', {
@@ -96,6 +101,12 @@ export default function AdminDashboard() {
           work_time: item.work_time,
           employee_card_number: item.employee_card_number,
         }));
+        
+        console.log('✅ 데이터 변환 완료:', {
+          변환된_데이터_수: formattedData.length,
+          고유_사용자_수: new Set(formattedData.map(d => `${d.name}_${d.employee_id}`)).size,
+        });
+        
         setSurveyData(formattedData);
       }
     } catch (err) {
@@ -115,12 +126,16 @@ export default function AdminDashboard() {
   // 사용자별로 그룹화 (이름 + 사번으로 구분)
   const groupedData = surveyData.reduce((acc, item) => {
     const key = `${item.name}_${item.employee_id}`;
-    if (!acc[key]) {
+    
+    // 해당 키가 없거나, 더 최근 데이터라면 업데이트
+    if (!acc[key] || new Date(item.saved_at) > new Date(acc[key].saved_at)) {
+      const totalRounds = surveyData.filter(d => `${d.name}_${d.employee_id}` === key).length;
       acc[key] = {
         ...item,
-        totalRounds: surveyData.filter(d => `${d.name}_${d.employee_id}` === key).length,
+        totalRounds,
       };
     }
+    
     return acc;
   }, {} as Record<string, any>);
 

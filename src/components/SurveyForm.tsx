@@ -285,8 +285,10 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
   const handleComplete = async () => {
     if (!validateInputs()) return;
     if (isSubmitting) return; // 중복 클릭 방지
-
-    setIsSubmitting(true);
+    if (currentRound > TOTAL_ROUNDS) {
+      window.alert('이미 모든 설문이 완료되었습니다.');
+      return;
+    }
 
     const questionElements = document.querySelectorAll('[data-question-id]');
     const answers: Record<string, string> = {};
@@ -303,6 +305,9 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
       setError('모든 문항에 답변해 주세요.');
       return;
     }
+
+    // 모든 검증 통과 후에만 저장 시작
+    setIsSubmitting(true);
 
     try {
       const response = await fetch('/api/survey', {
@@ -388,13 +393,30 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto bg-white rounded-lg shadow p-8">
-        {/* 헤더 */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">설문지</h1>
-          <p className="text-gray-600">
-            총 {TOTAL_ROUNDS}번의 설문을 완료해 주세요. 이 그룹은 {psfNames} PSF에 대한 설문입니다.
-          </p>
-        </div>
+        {/* 완료 화면 */}
+        {completed && (
+          <div className="text-center py-12">
+            <div className="mb-6">
+              <svg className="mx-auto h-24 w-24 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">설문이 완료되었습니다!</h2>
+            <p className="text-lg text-gray-600 mb-2">총 {TOTAL_ROUNDS}회의 설문에 응답해 주셔서 감사합니다.</p>
+            <p className="text-sm text-gray-500">이 페이지를 닫으셔도 됩니다.</p>
+          </div>
+        )}
+
+        {/* 설문 진행 화면 */}
+        {!completed && (
+          <>
+            {/* 헤더 */}
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">설문지</h1>
+              <p className="text-gray-600">
+                총 {TOTAL_ROUNDS}번의 설문을 완료해 주세요. 이 그룹은 {psfNames} PSF에 대한 설문입니다.
+              </p>
+            </div>
 
         {/* 정보 입력 섹션 */}
         {!isInfoFormFilled && (
@@ -757,6 +779,8 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
               </p>
             </div>
           </>
+        )}
+        </>
         )}
       </div>
     </div>

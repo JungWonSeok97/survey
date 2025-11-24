@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { SURVEY_DATA, ALL_OPTION_LISTS } from '@/lib/surveyData';
+import * as XLSX from 'xlsx';
 
 // Supabase에서 가져온 데이터 타입
 interface SurveyData {
@@ -141,6 +142,46 @@ export default function AdminDashboard() {
     router.push('/admin');
   };
 
+  const handleExportToExcel = () => {
+    // 엑셀로 내보낼 데이터 준비
+    const excelData = sortedUsers.map(user => ({
+      '이름': user.name,
+      '사번': user.employee_id,
+      '회사': user.affiliation,
+      '직급': user.position,
+      '종사자구분': user.job,
+      '근속년수': user.years,
+      '완료회차': user.totalRounds,
+      '최근저장일시': new Date(user.saved_at).toLocaleString('ko-KR'),
+    }));
+
+    // 워크시트 생성
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    
+    // 컬럼 너비 설정
+    const colWidths = [
+      { wch: 10 }, // 이름
+      { wch: 15 }, // 사번
+      { wch: 20 }, // 회사
+      { wch: 15 }, // 직급
+      { wch: 15 }, // 종사자구분
+      { wch: 10 }, // 근속년수
+      { wch: 10 }, // 완료회차
+      { wch: 20 }, // 최근저장일시
+    ];
+    worksheet['!cols'] = colWidths;
+
+    // 워크북 생성
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, '설문조사 결과');
+
+    // 파일명 생성 (현재 날짜 포함)
+    const fileName = `설문조사_결과_${new Date().toLocaleDateString('ko-KR').replace(/\. /g, '-').replace('.', '')}.xlsx`;
+
+    // 파일 다운로드
+    XLSX.writeFile(workbook, fileName);
+  };
+
   // 사용자별로 그룹화 (이름 + 사번으로 구분)
   const groupedData = surveyData.reduce((acc, item) => {
     const key = `${item.name}_${item.employee_id}`;
@@ -187,6 +228,12 @@ export default function AdminDashboard() {
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">설문 결과 관리</h1>
             <div className="flex gap-3">
+              <button
+                onClick={handleExportToExcel}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm flex items-center gap-2"
+              >
+                📊 엑셀 다운로드
+              </button>
               <button
                 onClick={() => fetchSurveyData()}
                 disabled={isLoading}

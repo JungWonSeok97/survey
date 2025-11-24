@@ -22,10 +22,6 @@ interface SurveyData {
 export default function AdminDashboard() {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterJob, setFilterJob] = useState('전체');
-  const [sortBy, setSortBy] = useState<'name' | 'job' | 'years'>('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [surveyData, setSurveyData] = useState<SurveyData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -116,24 +112,13 @@ export default function AdminDashboard() {
     router.push('/admin');
   };
 
-  // 필터링된 데이터
-  const filteredData = surveyData.filter((item) => {
-    const matchSearch = 
-      item.name.includes(searchTerm) || 
-      item.affiliation.includes(searchTerm) ||
-      item.employee_id.includes(searchTerm);
-    const matchJob = filterJob === '전체' || item.job === filterJob;
-    
-    return matchSearch && matchJob;
-  });
-
   // 사용자별로 그룹화 (이름 + 사번으로 구분)
-  const groupedData = filteredData.reduce((acc, item) => {
+  const groupedData = surveyData.reduce((acc, item) => {
     const key = `${item.name}_${item.employee_id}`;
     if (!acc[key]) {
       acc[key] = {
         ...item,
-        totalRounds: filteredData.filter(d => `${d.name}_${d.employee_id}` === key).length,
+        totalRounds: surveyData.filter(d => `${d.name}_${d.employee_id}` === key).length,
       };
     }
     return acc;
@@ -141,19 +126,9 @@ export default function AdminDashboard() {
 
   const uniqueUsers = Object.values(groupedData);
 
-  // 정렬
+  // saved_at으로 내림차순 정렬 (최신 데이터가 위로)
   const sortedUsers = [...uniqueUsers].sort((a, b) => {
-    let comparison = 0;
-    
-    if (sortBy === 'name') {
-      comparison = a.name.localeCompare(b.name);
-    } else if (sortBy === 'job') {
-      comparison = a.job.localeCompare(b.job);
-    } else if (sortBy === 'years') {
-      comparison = a.years - b.years;
-    }
-    
-    return sortOrder === 'asc' ? comparison : -comparison;
+    return new Date(b.saved_at).getTime() - new Date(a.saved_at).getTime();
   });
 
   if (!isLoggedIn) {
@@ -230,81 +205,6 @@ export default function AdminDashboard() {
                 ? new Date(surveyData[0]?.saved_at).toLocaleDateString('ko-KR')
                 : 'N/A'}
             </p>
-          </div>
-        </div>
-
-        {/* 필터 및 검색 */}
-        <div className="bg-white rounded-lg shadow mb-6 p-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                검색 (이름, 회사, 사번)
-              </label>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="검색어를 입력하세요"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                종사자 구분
-              </label>
-              <select
-                value={filterJob}
-                onChange={(e) => setFilterJob(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="전체">전체</option>
-                <option value="기관사">기관사</option>
-                <option value="관제사">관제사</option>
-                <option value="승무원">승무원</option>
-                <option value="작업자">작업자</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                정렬 기준
-              </label>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'name' | 'job' | 'years')}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="name">이름순</option>
-                <option value="job">직업별</option>
-                <option value="years">근속년수</option>
-              </select>
-            </div>
-          </div>
-          
-          {/* 정렬 순서 버튼 */}
-          <div className="mt-4 flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-700">
-              {sortBy === 'name' ? '이름' : sortBy === 'job' ? '직업' : '근속년수'} 정렬 순서:
-            </span>
-            <button
-              onClick={() => setSortOrder('asc')}
-              className={`px-4 py-2 rounded-md text-sm font-medium ${
-                sortOrder === 'asc'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              오름차순 ↑
-            </button>
-            <button
-              onClick={() => setSortOrder('desc')}
-              className={`px-4 py-2 rounded-md text-sm font-medium ${
-                sortOrder === 'desc'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              내림차순 ↓
-            </button>
           </div>
         </div>
 

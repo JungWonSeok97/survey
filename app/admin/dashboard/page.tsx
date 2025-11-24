@@ -564,32 +564,74 @@ export default function AdminDashboard() {
                   <div className="space-y-6">
                     {/* 그룹별로 데이터 분류 */}
                     {(() => {
-                      // 회차를 그룹별로 분류 (1-30: 그룹1, 31-60: 그룹2, 61-90: 그룹3, 91-120: 그룹4)
-                      const groupedByRange = selectedUser.allRounds.reduce((acc: any, roundData: any) => {
-                        const round = roundData.round;
-                        let groupNum;
-                        if (round >= 1 && round <= 30) groupNum = 1;
-                        else if (round >= 31 && round <= 60) groupNum = 2;
-                        else if (round >= 61 && round <= 90) groupNum = 3;
-                        else if (round >= 91 && round <= 120) groupNum = 4;
-                        else groupNum = Math.ceil(round / 30); // 120 초과하는 경우 대비
+                      // questions 배열의 PSF 번호로 그룹 판단
+                      const groupedByPSF = selectedUser.allRounds.reduce((acc: any, roundData: any) => {
+                        // 첫 번째 질문의 PSF 번호 추출
+                        const firstQuestion = roundData.questions?.[0];
+                        if (!firstQuestion) return acc;
                         
-                        if (!acc[groupNum]) acc[groupNum] = [];
-                        acc[groupNum].push(roundData);
+                        const psfId = firstQuestion.id;
+                        let groupKey = '';
+                        let psfInfo = '';
+                        
+                        // PSF 번호로 그룹 판단
+                        if (psfId === 1 || psfId === 2) {
+                          groupKey = 'group1';
+                          psfInfo = 'PSF 1, 2번';
+                        } else if (psfId === 2 || psfId === 3) {
+                          // PSF 2는 group1과 group2 모두 가능하므로 두 번째 질문 확인
+                          const secondQuestion = roundData.questions?.[1];
+                          if (secondQuestion?.id === 3) {
+                            groupKey = 'group2';
+                            psfInfo = 'PSF 2, 3번';
+                          } else {
+                            groupKey = 'group1';
+                            psfInfo = 'PSF 1, 2번';
+                          }
+                        } else if (psfId === 3 || psfId === 4) {
+                          groupKey = 'group3';
+                          psfInfo = 'PSF 3, 4번';
+                        } else if (psfId === 4 || psfId === 5) {
+                          // PSF 4는 group3과 group4 모두 가능하므로 두 번째 질문 확인
+                          const secondQuestion = roundData.questions?.[1];
+                          if (secondQuestion?.id === 5) {
+                            groupKey = 'group4';
+                            psfInfo = 'PSF 4, 5번';
+                          } else {
+                            groupKey = 'group3';
+                            psfInfo = 'PSF 3, 4번';
+                          }
+                        } else {
+                          groupKey = 'unknown';
+                          psfInfo = `PSF ${psfId}`;
+                        }
+                        
+                        if (!acc[groupKey]) {
+                          acc[groupKey] = {
+                            rounds: [],
+                            psfInfo: psfInfo
+                          };
+                        }
+                        acc[groupKey].rounds.push(roundData);
                         return acc;
                       }, {});
 
-                      // 그룹 번호 순서대로 정렬
-                      const sortedGroups = Object.keys(groupedByRange).sort((a, b) => Number(a) - Number(b));
+                      // 그룹 순서대로 정렬
+                      const groupOrder = ['group1', 'group2', 'group3', 'group4', 'unknown'];
+                      const sortedGroupKeys = Object.keys(groupedByPSF).sort((a, b) => {
+                        return groupOrder.indexOf(a) - groupOrder.indexOf(b);
+                      });
 
-                      return sortedGroups.map((groupNum) => {
-                        const groupRounds = groupedByRange[groupNum].sort((a: any, b: any) => a.round - b.round);
+                      return sortedGroupKeys.map((groupKey) => {
+                        const groupData = groupedByPSF[groupKey];
+                        const groupRounds = groupData.rounds.sort((a: any, b: any) => a.round - b.round);
+                        
                         return (
-                          <div key={groupNum} className="border-2 border-blue-300 rounded-lg overflow-hidden">
+                          <div key={groupKey} className="border-2 border-blue-300 rounded-lg overflow-hidden">
                             {/* 그룹 헤더 */}
                             <div className="bg-blue-600 px-5 py-3">
                               <h4 className="text-white font-bold text-lg flex items-center justify-between">
-                                <span>🔷 그룹 {groupNum}</span>
+                                <span>🔷 {groupData.psfInfo}</span>
                                 <span className="bg-white text-blue-600 px-3 py-1 rounded-md text-sm font-semibold">
                                   {groupRounds.length}회차
                                 </span>

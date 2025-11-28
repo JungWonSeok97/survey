@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { SURVEY_DATA, ALL_OPTION_LISTS } from '@/lib/surveyData';
 import * as XLSX from 'xlsx';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
 // Supabase에서 가져온 데이터 타입
 interface SurveyData {
@@ -201,6 +202,55 @@ export default function AdminDashboard() {
 
   const uniqueUsers = Object.values(groupedData);
 
+  // 통계 계산
+  const stats = {
+    // 평균 근속년수
+    avgYears: uniqueUsers.length > 0 
+      ? (uniqueUsers.reduce((sum: number, user: any) => sum + (user.years || 0), 0) / uniqueUsers.length).toFixed(1)
+      : 0,
+    
+    // 평균 나이 (생년월일 기반)
+    avgAge: (() => {
+      const usersWithBirth = uniqueUsers.filter((user: any) => user.date_of_birth);
+      if (usersWithBirth.length === 0) return 'N/A';
+      const totalAge = usersWithBirth.reduce((sum: number, user: any) => {
+        const birthYear = new Date(user.date_of_birth).getFullYear();
+        const currentYear = new Date().getFullYear();
+        return sum + (currentYear - birthYear);
+      }, 0);
+      return (totalAge / usersWithBirth.length).toFixed(1);
+    })(),
+    
+    // 종사자 구분별 수
+    jobCounts: uniqueUsers.reduce((acc: any, user: any) => {
+      const job = user.job || '미지정';
+      acc[job] = (acc[job] || 0) + 1;
+      return acc;
+    }, {}),
+    
+    // 직급별 수
+    positionCounts: uniqueUsers.reduce((acc: any, user: any) => {
+      const position = user.position || '미지정';
+      acc[position] = (acc[position] || 0) + 1;
+      return acc;
+    }, {}),
+  };
+
+  // 차트 데이터 변환
+  const jobChartData = Object.entries(stats.jobCounts).map(([name, value]) => ({
+    name,
+    value: value as number,
+  }));
+
+  const positionChartData = Object.entries(stats.positionCounts).map(([name, value]) => ({
+    name,
+    value: value as number,
+  }));
+
+  // 차트 색상
+  const JOB_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+  const POSITION_COLORS = ['#6366F1', '#14B8A6', '#F97316', '#E11D48', '#8B5CF6', '#06B6D4', '#84CC16'];
+
   // 근속년수 필터링
   const filteredUsers = uniqueUsers.filter((user: any) => {
     if (yearsFilter === 'all') return true;
@@ -273,29 +323,130 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* 통계 카드 */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">총 응답자</h3>
-            <p className="text-3xl font-bold text-blue-600">{uniqueUsers.length}명</p>
+        {/* 기본 통계 카드 */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow p-4">
+            <h3 className="text-xs font-medium text-gray-500 mb-1">총 응답자</h3>
+            <p className="text-2xl font-bold text-blue-600">{uniqueUsers.length}명</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">총 응답 수</h3>
-            <p className="text-3xl font-bold text-green-600">{surveyData.length}회</p>
+          <div className="bg-white rounded-lg shadow p-4">
+            <h3 className="text-xs font-medium text-gray-500 mb-1">총 응답 수</h3>
+            <p className="text-2xl font-bold text-green-600">{surveyData.length}회</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">평균 완료율</h3>
-            <p className="text-3xl font-bold text-purple-600">
+          <div className="bg-white rounded-lg shadow p-4">
+            <h3 className="text-xs font-medium text-gray-500 mb-1">평균 완료율</h3>
+            <p className="text-2xl font-bold text-purple-600">
               {uniqueUsers.length > 0 ? Math.round((surveyData.length / uniqueUsers.length / 30) * 100) : 0}%
             </p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">최근 응답</h3>
-            <p className="text-sm font-semibold text-gray-700">
+          <div className="bg-white rounded-lg shadow p-4">
+            <h3 className="text-xs font-medium text-gray-500 mb-1">평균 근속년수</h3>
+            <p className="text-2xl font-bold text-orange-600">{stats.avgYears}년</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <h3 className="text-xs font-medium text-gray-500 mb-1">평균 나이</h3>
+            <p className="text-2xl font-bold text-pink-600">{stats.avgAge}세</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <h3 className="text-xs font-medium text-gray-500 mb-1">최근 응답</h3>
+            <p className="text-sm font-semibold text-gray-700 mt-1">
               {surveyData.length > 0 
                 ? new Date(surveyData[0]?.saved_at).toLocaleDateString('ko-KR')
                 : 'N/A'}
             </p>
+          </div>
+        </div>
+
+        {/* 종사자 구분 & 직급 통계 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* 종사자 구분별 통계 */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">종사자 구분별 현황</h3>
+            <div className="flex flex-col md:flex-row items-center gap-4">
+              {/* 종사자 구분 목록 */}
+              <div className="flex-1 w-full">
+                <div className="space-y-2">
+                  {jobChartData.map((item, idx) => (
+                    <div key={item.name} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: JOB_COLORS[idx % JOB_COLORS.length] }}
+                        />
+                        <span className="text-sm font-medium text-gray-700">{item.name}</span>
+                      </div>
+                      <span className="text-sm font-bold text-gray-900">{item.value}명</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* 원형 차트 */}
+              <div className="w-full md:w-48 h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={jobChartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={40}
+                      outerRadius={70}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {jobChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={JOB_COLORS[index % JOB_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => [`${value}명`, '인원']} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* 직급별 통계 */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">직급별 현황</h3>
+            <div className="flex flex-col md:flex-row items-center gap-4">
+              {/* 직급 목록 */}
+              <div className="flex-1 w-full">
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {positionChartData.map((item, idx) => (
+                    <div key={item.name} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: POSITION_COLORS[idx % POSITION_COLORS.length] }}
+                        />
+                        <span className="text-sm font-medium text-gray-700">{item.name}</span>
+                      </div>
+                      <span className="text-sm font-bold text-gray-900">{item.value}명</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* 원형 차트 */}
+              <div className="w-full md:w-48 h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={positionChartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={40}
+                      outerRadius={70}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {positionChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={POSITION_COLORS[index % POSITION_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => [`${value}명`, '인원']} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           </div>
         </div>
 

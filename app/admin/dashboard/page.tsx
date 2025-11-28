@@ -28,6 +28,7 @@ export default function AdminDashboard() {
   const [error, setError] = useState('');
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [yearsFilter, setYearsFilter] = useState<string>('all'); // 근속년수 필터
 
   useEffect(() => {
     // 로그인 확인
@@ -200,8 +201,18 @@ export default function AdminDashboard() {
 
   const uniqueUsers = Object.values(groupedData);
 
+  // 근속년수 필터링
+  const filteredUsers = uniqueUsers.filter((user: any) => {
+    if (yearsFilter === 'all') return true;
+    if (yearsFilter === 'under10') return user.years < 10;
+    if (yearsFilter === '10to20') return user.years >= 10 && user.years < 20;
+    if (yearsFilter === '20to30') return user.years >= 20 && user.years < 30;
+    if (yearsFilter === 'over30') return user.years >= 30;
+    return true;
+  });
+
   // saved_at으로 내림차순 정렬 (최신 데이터가 위로)
-  const sortedUsers = [...uniqueUsers].sort((a, b) => {
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
     return new Date(b.saved_at).getTime() - new Date(a.saved_at).getTime();
   });
 
@@ -288,9 +299,73 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        {/* 필터 영역 */}
+        <div className="bg-white rounded-lg shadow p-4 mb-6">
+          <div className="flex flex-wrap items-center gap-4">
+            <span className="text-sm font-medium text-gray-700">근속년수 필터:</span>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setYearsFilter('all')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  yearsFilter === 'all'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                전체
+              </button>
+              <button
+                onClick={() => setYearsFilter('under10')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  yearsFilter === 'under10'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                10년 미만
+              </button>
+              <button
+                onClick={() => setYearsFilter('10to20')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  yearsFilter === '10to20'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                10년 이상
+              </button>
+              <button
+                onClick={() => setYearsFilter('20to30')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  yearsFilter === '20to30'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                20년 이상
+              </button>
+              <button
+                onClick={() => setYearsFilter('over30')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  yearsFilter === 'over30'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                30년 이상
+              </button>
+            </div>
+            {yearsFilter !== 'all' && (
+              <span className="text-sm text-gray-500">
+                ({sortedUsers.length}명)
+              </span>
+            )}
+          </div>
+        </div>
+
         {/* 데이터 테이블/카드 */}
         <div className="bg-white rounded-lg shadow">
-          {uniqueUsers.length === 0 ? (
+          {sortedUsers.length === 0 ? (
             <div className="px-6 py-8 text-center text-gray-500">
               검색 결과가 없습니다.
             </div>

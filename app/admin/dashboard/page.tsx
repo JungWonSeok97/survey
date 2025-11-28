@@ -288,115 +288,172 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* 데이터 테이블 */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    이름
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    사번
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    아이디
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    회사
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    직급
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    종사자 구분
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    근속년수
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    완료 회차
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    최근 작성일
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    작업
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {uniqueUsers.length === 0 ? (
-                  <tr>
-                    <td colSpan={11} className="px-6 py-8 text-center text-gray-500">
-                      검색 결과가 없습니다.
-                    </td>
-                  </tr>
-                ) : (
-                  sortedUsers.map((user) => (
-                    <tr key={`${user.name}_${user.employee_id}`} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">{user.employee_id}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">ID-{user.id}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{user.affiliation}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">{user.position}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                          {user.job}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{user.years}년</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {user.totalRounds} / 30
-                          <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-                            <div
-                              className="bg-blue-600 h-2 rounded-full"
-                              style={{ width: `${(user.totalRounds / 30) * 100}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(user.saved_at).toLocaleString('ko-KR')}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          className="text-blue-600 hover:text-blue-900"
-                          onClick={() => {
-                            // 해당 사용자의 모든 회차 데이터 찾기
-                            const userAllRounds = surveyData.filter(
-                              item => item.name === user.name && item.employee_id === user.employee_id
-                            );
-                            setSelectedUser({
-                              ...user,
-                              allRounds: userAllRounds
-                            });
-                            setShowDetailModal(true);
-                          }}
-                        >
-                          상세보기
-                        </button>
-                      </td>
+        {/* 데이터 테이블/카드 */}
+        <div className="bg-white rounded-lg shadow">
+          {uniqueUsers.length === 0 ? (
+            <div className="px-6 py-8 text-center text-gray-500">
+              검색 결과가 없습니다.
+            </div>
+          ) : (
+            <>
+              {/* 데스크톱: 테이블 뷰 */}
+              <div className="hidden lg:block overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        이름
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        사번
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        회사
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        직급
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        종사자 구분
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        완료 회차
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        작업
+                      </th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {sortedUsers.map((user) => (
+                      <tr key={`${user.name}_${user.employee_id}`} className="hover:bg-gray-50">
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500">{user.employee_id}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{user.affiliation}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500">{user.position}</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                            {user.job}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {user.totalRounds} / 30
+                            <div className="w-24 bg-gray-200 rounded-full h-2 mt-1">
+                              <div
+                                className="bg-blue-600 h-2 rounded-full"
+                                style={{ width: `${(user.totalRounds / 30) * 100}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                          <button
+                            className="text-blue-600 hover:text-blue-900"
+                            onClick={() => {
+                              const userAllRounds = surveyData.filter(
+                                item => item.name === user.name && item.employee_id === user.employee_id
+                              );
+                              setSelectedUser({
+                                ...user,
+                                allRounds: userAllRounds
+                              });
+                              setShowDetailModal(true);
+                            }}
+                          >
+                            상세보기
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 모바일/태블릿: 카드 뷰 */}
+              <div className="lg:hidden divide-y divide-gray-200">
+                {sortedUsers.map((user) => (
+                  <div 
+                    key={`${user.name}_${user.employee_id}`}
+                    className="p-4 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <h3 className="text-base font-bold text-gray-900">{user.name}</h3>
+                        <p className="text-sm text-gray-500 mt-1">{user.employee_id}</p>
+                      </div>
+                      <button
+                        className="ml-4 px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+                        onClick={() => {
+                          const userAllRounds = surveyData.filter(
+                            item => item.name === user.name && item.employee_id === user.employee_id
+                          );
+                          setSelectedUser({
+                            ...user,
+                            allRounds: userAllRounds
+                          });
+                          setShowDetailModal(true);
+                        }}
+                      >
+                        상세보기
+                      </button>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-gray-500">회사:</span>
+                        <p className="font-medium text-gray-900">{user.affiliation}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">직급:</span>
+                        <p className="font-medium text-gray-900">{user.position}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">종사자 구분:</span>
+                        <p className="mt-1">
+                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                            {user.job}
+                          </span>
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">근속년수:</span>
+                        <p className="font-medium text-gray-900">{user.years}년</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-sm text-gray-500">완료 회차</span>
+                        <span className="text-sm font-semibold text-gray-900">{user.totalRounds} / 30</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all"
+                          style={{ width: `${(user.totalRounds / 30) * 100}%` }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <span className="text-xs text-gray-500">최근 작성일:</span>
+                      <p className="text-sm text-gray-700 mt-0.5">
+                        {new Date(user.saved_at).toLocaleString('ko-KR')}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* 페이지네이션 (나중에 구현 예정) */}

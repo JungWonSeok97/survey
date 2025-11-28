@@ -317,7 +317,13 @@ export default function AdminDashboard() {
                         종사자 구분
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        근속년수
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         완료 회차
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        최근 작성일
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         작업
@@ -345,6 +351,9 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{user.years}년</div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">
                             {user.totalRounds} / 30
                             <div className="w-24 bg-gray-200 rounded-full h-2 mt-1">
@@ -353,6 +362,11 @@ export default function AdminDashboard() {
                                 style={{ width: `${(user.totalRounds / 30) * 100}%` }}
                               ></div>
                             </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500">
+                            {new Date(user.saved_at).toLocaleString('ko-KR')}
                           </div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">

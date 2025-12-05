@@ -145,14 +145,29 @@ export default function AdminDashboard() {
   };
 
   const handleExportToExcel = () => {
-    // 엑셀로 내보낼 데이터 준비
+    // 엑셀로 내보낼 데이터 준비 (round, questions 제외한 모든 개인정보)
     const excelData = sortedUsers.map(user => ({
       '이름': user.name,
       '사번': user.employee_id,
+      '성별': user.gender || 'N/A',
+      '생년월일': user.date_of_birth || 'N/A',
       '회사': user.affiliation,
+      '부서': user.department || 'N/A',
       '직급': user.position,
       '종사자구분': user.job,
       '근속년수': user.years,
+      '사무실전화': user.office_phone || 'N/A',
+      '회사이메일': user.company_email || 'N/A',
+      '사원증번호': user.employee_card_number || 'N/A',
+      '철도자격증': user.railroad_certification || 'N/A',
+      '직무교육': user.job_education || 'N/A',
+      '건강검진일': user.health_check_date || 'N/A',
+      '체온': user.body_temperature || 'N/A',
+      '수축기혈압': user.systolic_bp || 'N/A',
+      '이완기혈압': user.diastolic_bp || 'N/A',
+      '맥박': user.pulse || 'N/A',
+      '근무형태': user.work_type || 'N/A',
+      '근무시간': user.work_time || 'N/A',
       '완료회차': user.totalRounds,
       '최근저장일시': new Date(user.saved_at).toLocaleString('ko-KR'),
     }));
@@ -164,10 +179,25 @@ export default function AdminDashboard() {
     const colWidths = [
       { wch: 10 }, // 이름
       { wch: 15 }, // 사번
+      { wch: 8 },  // 성별
+      { wch: 12 }, // 생년월일
       { wch: 20 }, // 회사
-      { wch: 15 }, // 직급
-      { wch: 15 }, // 종사자구분
+      { wch: 15 }, // 부서
+      { wch: 12 }, // 직급
+      { wch: 12 }, // 종사자구분
       { wch: 10 }, // 근속년수
+      { wch: 15 }, // 사무실전화
+      { wch: 25 }, // 회사이메일
+      { wch: 15 }, // 사원증번호
+      { wch: 15 }, // 철도자격증
+      { wch: 15 }, // 직무교육
+      { wch: 12 }, // 건강검진일
+      { wch: 8 },  // 체온
+      { wch: 12 }, // 수축기혈압
+      { wch: 12 }, // 이완기혈압
+      { wch: 8 },  // 맥박
+      { wch: 12 }, // 근무형태
+      { wch: 12 }, // 근무시간
       { wch: 10 }, // 완료회차
       { wch: 20 }, // 최근저장일시
     ];

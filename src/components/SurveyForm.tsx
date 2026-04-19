@@ -1,312 +1,566 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import MultipleChoiceQuestion from '@/components/MultipleChoiceQuestion';
-import { SURVEY_DATA, ALL_OPTION_LISTS } from '@/lib/surveyData';
+import { ALL_OPTION_LISTS, SURVEY_DATA } from '@/lib/surveyData';
 
 interface SurveyFormProps {
   questionIds: [number, number];
   groupName: string;
 }
 
+type SurveyProfile = {
+  name: string;
+  affiliation: string;
+  years: string;
+  job: string;
+  employeeId: string;
+  position: string;
+  department: string;
+  gender: string;
+  dateOfBirth: string;
+  officePhone: string;
+  companyEmail: string;
+  railroadCertification: string;
+  jobEducation: string;
+  healthCheckDate: string;
+  bodyTemperature: string;
+  systolicBP: string;
+  diastolicBP: string;
+  pulse: string;
+  workType: string;
+  workTime: string;
+  employeeCardNumber: string;
+};
+
+type ProfileFieldKey = keyof SurveyProfile;
+type FinalSurveyKey =
+  | 'occupationDetail'
+  | 'overtimePeriod'
+  | 'overtimeLong'
+  | 'physicalEffort'
+  | 'cognitiveFocus'
+  | 'accidentLoss';
+
+type ProfileFieldConfig = {
+  key: ProfileFieldKey;
+  label: string;
+  type: 'text' | 'date' | 'datetime-local' | 'email' | 'tel' | 'select';
+  placeholder?: string;
+  options?: { value: string; label: string }[];
+};
+
+type SurveyDefinition = (typeof SURVEY_DATA)[number];
+
+type RenderedQuestion = SurveyDefinition & {
+  conditions: Record<string, string>;
+  details: Record<string, unknown>;
+};
+
+const TOTAL_ROUNDS = 30;
+
+const INITIAL_PROFILE: SurveyProfile = {
+  name: '',
+  affiliation: '',
+  years: '',
+  job: '기관사',
+  employeeId: '',
+  position: '',
+  department: '',
+  gender: '선택',
+  dateOfBirth: '',
+  officePhone: '',
+  companyEmail: '',
+  railroadCertification: '',
+  jobEducation: '',
+  healthCheckDate: '',
+  bodyTemperature: '',
+  systolicBP: '',
+  diastolicBP: '',
+  pulse: '',
+  workType: '',
+  workTime: '',
+  employeeCardNumber: '',
+};
+
+const PROFILE_FIELDS: ProfileFieldConfig[] = [
+  {
+    key: 'name',
+    label: '성명을 적어주세요.',
+    type: 'text',
+    placeholder: '홍길동',
+  },
+  {
+    key: 'affiliation',
+    label: '소속 기관을 적어주세요.',
+    type: 'text',
+    placeholder: '예: 코레일',
+  },
+  {
+    key: 'years',
+    label: '근속기간(년)을 적어주세요.',
+    type: 'text',
+    placeholder: '10',
+  },
+  {
+    key: 'job',
+    label: '직종 구분',
+    type: 'select',
+    options: [
+      { value: '기관사', label: '기관사' },
+      { value: '관제사', label: '관제사' },
+      { value: '승무원', label: '승무원' },
+      { value: '작업자', label: '작업자' },
+    ],
+  },
+  {
+    key: 'employeeId',
+    label: '사번을 적어주세요.',
+    type: 'text',
+    placeholder: '사번 입력',
+  },
+  {
+    key: 'position',
+    label: '직급을 적어주세요. ex) 3급, 4급',
+    type: 'text',
+    placeholder: '예: 3급',
+  },
+  {
+    key: 'department',
+    label: '부서를 적어주세요. ex) OO본부 OO처',
+    type: 'text',
+    placeholder: '예: 서울본부 운전처',
+  },
+  {
+    key: 'gender',
+    label: '성별',
+    type: 'select',
+    options: [
+      { value: '선택', label: '선택' },
+      { value: '남성', label: '남성' },
+      { value: '여성', label: '여성' },
+    ],
+  },
+  {
+    key: 'dateOfBirth',
+    label: '생년월일',
+    type: 'date',
+  },
+  {
+    key: 'officePhone',
+    label: '업무 연락처를 적어주세요.',
+    type: 'tel',
+    placeholder: '02-1234-5678',
+  },
+  {
+    key: 'companyEmail',
+    label: '회사 이메일을 적어주세요.',
+    type: 'email',
+    placeholder: 'email@company.com',
+  },
+  {
+    key: 'railroadCertification',
+    label: '철도 관련 자격증 보유 여부를 적어주세요.',
+    type: 'text',
+    placeholder: '예: 있음 / 없음',
+  },
+  {
+    key: 'jobEducation',
+    label: '직무교육 이수 여부를 적어주세요.',
+    type: 'text',
+    placeholder: '예: 2년 주기 이수',
+  },
+  {
+    key: 'healthCheckDate',
+    label: '최근 건강검진 일시를 적어주세요.',
+    type: 'datetime-local',
+  },
+  {
+    key: 'bodyTemperature',
+    label: '건강검진 시 체온을 적어주세요.',
+    type: 'text',
+    placeholder: '36.5',
+  },
+  {
+    key: 'systolicBP',
+    label: '건강검진 시 수축기 혈압을 적어주세요.',
+    type: 'text',
+    placeholder: '120',
+  },
+  {
+    key: 'diastolicBP',
+    label: '건강검진 시 이완기 혈압을 적어주세요.',
+    type: 'text',
+    placeholder: '80',
+  },
+  {
+    key: 'pulse',
+    label: '건강검진 시 맥박을 적어주세요.',
+    type: 'text',
+    placeholder: '70',
+  },
+  {
+    key: 'workType',
+    label: '근무유형을 적어주세요.',
+    type: 'text',
+    placeholder: '예: 주간/교대/야간',
+  },
+  {
+    key: 'workTime',
+    label: '출근/퇴근 시각을 적어주세요. ex) 09:00/18:00',
+    type: 'text',
+    placeholder: '09:00/18:00',
+  },
+  {
+    key: 'employeeCardNumber',
+    label: '사원증 또는 출입증 일련번호를 적어주세요.',
+    type: 'text',
+    placeholder: '일련번호 입력',
+  },
+];
+
+const FINAL_SURVEY_QUESTIONS: {
+  key: FinalSurveyKey;
+  question: string;
+  options: string[];
+}[] = [
+  {
+    key: 'occupationDetail',
+    question: 'Q. (직종) 상세 직종을 선택해주세요.',
+    options: [
+      '1. 기관사_기관사',
+      '2. 관제사_중앙(TTC/CTC)',
+      '3. 관제사_로컬(역 구내)',
+      '4. 승무원_열차승무(열차 내)',
+      '5. 승무원_역무영업(역사 내)',
+      '6. 작업자_수송원(입환작업)',
+      '7. 작업자_선로 유지보수(시설)',
+      '8. 작업자_건축/구조물 점검(시설)',
+      '9. 작업자_전철전력(전기)',
+      '10. 작업자_신호 및 통신(전기)',
+      '11. 작업자_차량중정비(차량)',
+      '12. 작업자_차량경정비(차량)',
+    ],
+  },
+  {
+    key: 'overtimePeriod',
+    question:
+      'Q. (작업 시간) 귀하는 얼마나 자주 초과근무를 합니까? (최근 10작업일 이내)',
+    options: [
+      '1. 전혀 하지 않음',
+      '2. 30분~1시간 미만',
+      '3. 1시간~2시간 미만',
+      '4. 2시간~3시간 미만',
+      '5. 3시간 이상',
+    ],
+  },
+  {
+    key: 'overtimeLong',
+    question:
+      'Q. (작업 시간) 귀하는 초과근무를 할 때 평균적으로 얼마나 길게 초과근무를 합니까?',
+    options: [
+      '1. 30분 미만',
+      '2. 30분~1시간 미만',
+      '3. 1시간~2시간 미만',
+      '4. 2시간~3시간 미만',
+      '5. 3시간 이상',
+    ],
+  },
+  {
+    key: 'physicalEffort',
+    question:
+      'Q. (신체 부하) 귀하의 일상적인 업무는 어느 정도의 육체적 노력(근력 사용, 걷기, 무거운 짐 들기 등)을 요구합니까?',
+    options: [
+      '1. 앉아서 하는 업무',
+      '2. 가벼운 신체 활동(걷기)',
+      '3. 가벼운 물건 운반',
+      '4. 장비 조작, 운반 등',
+      '5. 탈력 수준의 고강도 노동',
+    ],
+  },
+  {
+    key: 'cognitiveFocus',
+    question:
+      'Q. (인지 부하) 귀하의 업무는 어느 정도의 인지적 집중(단순 반복, 문제 해결 능력, 돌발상황 대처능력 등)을 요구합니까?',
+    options: [
+      '1. 단순 반복 작업',
+      '2. 일상적 대응',
+      '3. 문제 파악 및 해결',
+      '4. 다중 정보 모니터링',
+      '5. 돌발상황 대처능력 요구',
+    ],
+  },
+  {
+    key: 'accidentLoss',
+    question:
+      'Q. (사고로 인한 손실) 귀하가 업무 중 실수했을 때, 사고로 발생하는 손해가 어느 수준에 가깝다고 생각합니까?',
+    options: [
+      '1. 응급 처치 가능',
+      '2. 병원 방문 필요',
+      '3. 3주 이상 치료',
+      '4. 1인 사망/영구 장애',
+      '5. 대형 사고 (다수 상해)',
+    ],
+  },
+];
+
+const INITIAL_FINAL_ANSWERS: Record<FinalSurveyKey, string> = {
+  occupationDetail: '',
+  overtimePeriod: '',
+  overtimeLong: '',
+  physicalEffort: '',
+  cognitiveFocus: '',
+  accidentLoss: '',
+};
+
+function generateCombinations(arrays: string[][]): string[][] {
+  if (arrays.length === 0) return [];
+  if (arrays.length === 1) return arrays[0].map((item) => [item]);
+
+  const result: string[][] = [];
+  const restCombinations = generateCombinations(arrays.slice(1));
+
+  for (const item of arrays[0]) {
+    for (const rest of restCombinations) {
+      result.push([item, ...rest]);
+    }
+  }
+
+  return result;
+}
+
+function buildQuestions(questionIds: [number, number]): RenderedQuestion[] {
+  return SURVEY_DATA.filter((questionDefinition) =>
+    questionIds.includes(questionDefinition.id),
+  ).map((questionDefinition) => {
+    const keysForThisQuestion = questionDefinition.condition_keys;
+    const listsToCombine = keysForThisQuestion.map(
+      (key) => ALL_OPTION_LISTS[key as keyof typeof ALL_OPTION_LISTS],
+    );
+
+    const allScenarios = generateCombinations(listsToCombine);
+    const selectedScenario =
+      allScenarios[Math.floor(Math.random() * allScenarios.length)];
+
+    const conditions: Record<string, string> = {};
+    const details: Record<string, unknown> = {};
+    const labels = questionDefinition.condition_labels;
+    const descriptions = questionDefinition.condition_descriptions || {};
+
+    keysForThisQuestion.forEach((key, index) => {
+      const label = labels[key as keyof typeof labels];
+      const value = selectedScenario[index];
+      const descriptionGroup = descriptions[
+        key as keyof typeof descriptions
+      ] as Record<string, unknown> | undefined;
+
+        if (!label || typeof value !== 'string') {
+          return;
+        }
+
+        conditions[label] = value;
+
+      if (descriptionGroup?.[value]) {
+        details[label] = descriptionGroup[value];
+      }
+    });
+
+    return {
+      ...questionDefinition,
+      conditions,
+      details,
+    };
+  });
+}
+
 export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) {
   const [currentRound, setCurrentRound] = useState(1);
-  const [name, setName] = useState('');
-  const [affiliation, setAffiliation] = useState('');
-  const [years, setYears] = useState('');
-  const [job, setJob] = useState('기관사');
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [profile, setProfile] = useState<SurveyProfile>(INITIAL_PROFILE);
+  const [questions, setQuestions] = useState<RenderedQuestion[]>([]);
   const [completed, setCompleted] = useState(false);
   const [error, setError] = useState('');
   const [isInfoFormFilled, setIsInfoFormFilled] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFinalSurveyStep, setIsFinalSurveyStep] = useState(false);
+  const [savedResponseIds, setSavedResponseIds] = useState<string[]>([]);
+  const [finalAnswers, setFinalAnswers] =
+    useState<Record<FinalSurveyKey, string>>(INITIAL_FINAL_ANSWERS);
 
-  // 새로 추가된 필드들
-  const [employeeId, setEmployeeId] = useState('');
-  const [position, setPosition] = useState('');
-  const [department, setDepartment] = useState('');
-  const [gender, setGender] = useState('선택');
-  const [dateOfBirth, setDateOfBirth] = useState('');
-  const [officePhone, setOfficePhone] = useState('');
-  const [companyEmail, setCompanyEmail] = useState('');
-  const [railroadCertification, setRailroadCertification] = useState('');
-  const [jobEducation, setJobEducation] = useState('');
-  const [healthCheckDate, setHealthCheckDate] = useState('');
-  const [bodyTemperature, setBodyTemperature] = useState('');
-  const [systolicBP, setSystolicBP] = useState('');
-  const [diastolicBP, setDiastolicBP] = useState('');
-  const [pulse, setPulse] = useState('');
-  const [workType, setWorkType] = useState('');
-  const [workTime, setWorkTime] = useState('');
-  const [employeeCardNumber, setEmployeeCardNumber] = useState('');
-
-  const TOTAL_ROUNDS = 30;
-
-  // 각 필드의 ref
-  const nameRef = useRef<HTMLInputElement>(null);
-  const affiliationRef = useRef<HTMLInputElement>(null);
-  const yearsRef = useRef<HTMLInputElement>(null);
-  const jobRef = useRef<HTMLSelectElement>(null);
-  const employeeIdRef = useRef<HTMLInputElement>(null);
-  const positionRef = useRef<HTMLInputElement>(null);
-  const departmentRef = useRef<HTMLInputElement>(null);
-  const genderRef = useRef<HTMLSelectElement>(null);
-  const dateOfBirthRef = useRef<HTMLInputElement>(null);
-  const officePhoneRef = useRef<HTMLInputElement>(null);
-  const companyEmailRef = useRef<HTMLInputElement>(null);
-  const railroadCertificationRef = useRef<HTMLInputElement>(null);
-  const jobEducationRef = useRef<HTMLInputElement>(null);
-  const healthCheckDateRef = useRef<HTMLInputElement>(null);
-  const bodyTemperatureRef = useRef<HTMLInputElement>(null);
-  const systolicBPRef = useRef<HTMLInputElement>(null);
-  const diastolicBPRef = useRef<HTMLInputElement>(null);
-  const pulseRef = useRef<HTMLInputElement>(null);
-  const workTypeRef = useRef<HTMLInputElement>(null);
-  const workTimeRef = useRef<HTMLInputElement>(null);
-  const employeeCardNumberRef = useRef<HTMLInputElement>(null);
+  const fieldRefs = useRef<
+    Partial<Record<ProfileFieldKey, HTMLInputElement | HTMLSelectElement | null>>
+  >({});
 
   useEffect(() => {
-    if (isInfoFormFilled) {
-      populateQuestions();
+    if (isInfoFormFilled && !isFinalSurveyStep) {
+      setQuestions(buildQuestions(questionIds));
     }
-  }, [currentRound, isInfoFormFilled]);
+  }, [currentRound, isFinalSurveyStep, isInfoFormFilled, questionIds]);
 
-  const generateCombinations = (arrays: string[][]): string[][] => {
-    if (arrays.length === 0) return [];
-    if (arrays.length === 1) return arrays[0].map((item) => [item]);
-
-    const result: string[][] = [];
-    const restCombinations = generateCombinations(arrays.slice(1));
-
-    for (const item of arrays[0]) {
-      for (const rest of restCombinations) {
-        result.push([item, ...rest]);
-      }
-    }
-
-    return result;
+  const updateProfile = (key: ProfileFieldKey, value: string) => {
+    setProfile((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
   };
 
-  const populateQuestions = () => {
-    const newQuestions = SURVEY_DATA.filter((qDef: any) => questionIds.includes(qDef.id))
-      .map((qDef: any) => {
-        const keysForThisQ: string[] = qDef.condition_keys;
-        const listsToCombing = keysForThisQ.map((key: string) => ALL_OPTION_LISTS[key as keyof typeof ALL_OPTION_LISTS]);
-        
-        // 랜덤 시나리오 선택
-        const allScenarios = generateCombinations(listsToCombing);
-        const selectedScenario = allScenarios[Math.floor(Math.random() * allScenarios.length)];
-
-        const qConditions: Record<string, string> = {};
-        const qDetails: Record<string, any> = {};
-        const labels = qDef.condition_labels;
-        const allDescriptions = qDef.condition_descriptions || {};
-
-        keysForThisQ.forEach((key: string, i: number) => {
-          const label = labels[key as keyof typeof labels];
-          const value = selectedScenario[i];
-          qConditions[label] = value;
-
-          if (allDescriptions[key as keyof typeof allDescriptions] && 
-              allDescriptions[key as keyof typeof allDescriptions][value]) {
-            qDetails[label] = allDescriptions[key as keyof typeof allDescriptions][value];
-          }
-        });
-
-        return {
-          ...qDef,
-          conditions: qConditions,
-          details: qDetails,
-        };
-      });
-
-    setQuestions(newQuestions);
+  const focusField = (key: ProfileFieldKey, message: string) => {
+    setError(message);
+    const field = fieldRefs.current[key];
+    field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    field?.focus();
+    return false;
   };
 
   const validateInputs = (): boolean => {
-    if (!name.trim()) {
-      setError('성명을 입력해 주세요.');
-      nameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      nameRef.current?.focus();
-      return false;
+    if (!profile.name.trim()) {
+      return focusField('name', '성명을 입력해 주세요.');
     }
 
-    if (!/^[가-힣]+$/.test(name)) {
-      setError('성명에는 특수문자나 공백을 사용할 수 없습니다.');
-      nameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      nameRef.current?.focus();
-      return false;
+    if (!/^[가-힣]+$/.test(profile.name.trim())) {
+      return focusField('name', '성명은 공백 없이 한글만 입력해 주세요.');
     }
 
-    if (!affiliation.trim()) {
-      setError('회사를 입력해 주세요.');
-      affiliationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      affiliationRef.current?.focus();
-      return false;
+    if (!profile.affiliation.trim()) {
+      return focusField('affiliation', '소속 기관을 입력해 주세요.');
     }
 
-    if (!years.trim()) {
-      setError('근속기간(년)을 입력해 주세요.');
-      yearsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      yearsRef.current?.focus();
-      return false;
+    if (!profile.years.trim()) {
+      return focusField('years', '근속기간(년)을 입력해 주세요.');
     }
 
-    if (!/^\d+$/.test(years)) {
-      setError('근속기간은 숫자만 입력할 수 있습니다.');
-      yearsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      yearsRef.current?.focus();
-      return false;
+    if (!/^\d+$/.test(profile.years.trim())) {
+      return focusField('years', '근속기간은 숫자만 입력해 주세요.');
     }
 
-    if (!employeeId.trim()) {
-      setError('사번을 입력해 주세요.');
-      employeeIdRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      employeeIdRef.current?.focus();
-      return false;
+    if (!profile.employeeId.trim()) {
+      return focusField('employeeId', '사번을 입력해 주세요.');
     }
 
-    if (!position.trim()) {
-      setError('직급을 입력해 주세요.');
-      positionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      positionRef.current?.focus();
-      return false;
+    if (!profile.position.trim()) {
+      return focusField('position', '직급을 입력해 주세요.');
     }
 
-    if (!department.trim()) {
-      setError('소속을 입력해 주세요.');
-      departmentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      departmentRef.current?.focus();
-      return false;
+    if (!profile.department.trim()) {
+      return focusField('department', '부서를 입력해 주세요.');
     }
 
-    if (gender === '선택') {
-      setError('성별을 선택해 주세요.');
-      genderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      genderRef.current?.focus();
-      return false;
+    if (profile.gender === '선택') {
+      return focusField('gender', '성별을 선택해 주세요.');
     }
 
-    if (!dateOfBirth.trim()) {
-      setError('생년월일을 입력해 주세요.');
-      dateOfBirthRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      dateOfBirthRef.current?.focus();
-      return false;
+    if (!profile.dateOfBirth.trim()) {
+      return focusField('dateOfBirth', '생년월일을 입력해 주세요.');
     }
 
-    if (!officePhone.trim()) {
-      setError('사무실 연락처를 입력해 주세요.');
-      officePhoneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      officePhoneRef.current?.focus();
-      return false;
+    if (!profile.officePhone.trim()) {
+      return focusField('officePhone', '업무 연락처를 입력해 주세요.');
     }
 
-    if (!companyEmail.trim()) {
-      setError('회사 메일을 입력해 주세요.');
-      companyEmailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      companyEmailRef.current?.focus();
-      return false;
+    if (!profile.companyEmail.trim()) {
+      return focusField('companyEmail', '회사 이메일을 입력해 주세요.');
     }
 
-    if (!railroadCertification.trim()) {
-      setError('철도 관련 자격증 보유 여부를 입력해 주세요.');
-      railroadCertificationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      railroadCertificationRef.current?.focus();
-      return false;
+    if (!profile.railroadCertification.trim()) {
+      return focusField(
+        'railroadCertification',
+        '철도 관련 자격증 보유 여부를 입력해 주세요.',
+      );
     }
 
-    if (!jobEducation.trim()) {
-      setError('직무교육이수 여부를 입력해 주세요.');
-      jobEducationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      jobEducationRef.current?.focus();
-      return false;
+    if (!profile.jobEducation.trim()) {
+      return focusField('jobEducation', '직무교육 이수 여부를 입력해 주세요.');
     }
 
-    if (!healthCheckDate.trim()) {
-      setError('건강검진 일시를 입력해 주세요.');
-      healthCheckDateRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      healthCheckDateRef.current?.focus();
-      return false;
+    if (!profile.healthCheckDate.trim()) {
+      return focusField(
+        'healthCheckDate',
+        '최근 건강검진 일시를 입력해 주세요.',
+      );
     }
 
-    if (!bodyTemperature.trim()) {
-      setError('건강검진시 체온을 입력해 주세요.');
-      bodyTemperatureRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      bodyTemperatureRef.current?.focus();
-      return false;
+    if (!profile.bodyTemperature.trim()) {
+      return focusField('bodyTemperature', '체온을 입력해 주세요.');
     }
 
-    if (!systolicBP.trim()) {
-      setError('건강검진시 수축기 혈압을 입력해 주세요.');
-      systolicBPRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      systolicBPRef.current?.focus();
-      return false;
+    if (!profile.systolicBP.trim()) {
+      return focusField('systolicBP', '수축기 혈압을 입력해 주세요.');
     }
 
-    if (!diastolicBP.trim()) {
-      setError('건강검진시 이완기 혈압을 입력해 주세요.');
-      diastolicBPRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      diastolicBPRef.current?.focus();
-      return false;
+    if (!profile.diastolicBP.trim()) {
+      return focusField('diastolicBP', '이완기 혈압을 입력해 주세요.');
     }
 
-    if (!pulse.trim()) {
-      setError('건강검진시 맥박을 입력해 주세요.');
-      pulseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      pulseRef.current?.focus();
-      return false;
+    if (!profile.pulse.trim()) {
+      return focusField('pulse', '맥박을 입력해 주세요.');
     }
 
-    if (!workType.trim()) {
-      setError('근무유형을 입력해 주세요.');
-      workTypeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      workTypeRef.current?.focus();
-      return false;
+    if (!profile.workType.trim()) {
+      return focusField('workType', '근무유형을 입력해 주세요.');
     }
 
-    if (!workTime.trim()) {
-      setError('출근/퇴근일시를 입력해 주세요.');
-      workTimeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      workTimeRef.current?.focus();
-      return false;
+    if (!profile.workTime.trim()) {
+      return focusField('workTime', '출근/퇴근 시각을 입력해 주세요.');
     }
 
-    if (!employeeCardNumber.trim()) {
-      setError('사원증 출입증 일련번호를 입력해 주세요.');
-      employeeCardNumberRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      employeeCardNumberRef.current?.focus();
-      return false;
+    if (!profile.employeeCardNumber.trim()) {
+      return focusField(
+        'employeeCardNumber',
+        '사원증 또는 출입증 일련번호를 입력해 주세요.',
+      );
     }
 
     setError('');
     return true;
   };
 
-  const handleComplete = async () => {
+  const validateFinalSurvey = () => {
+    for (const question of FINAL_SURVEY_QUESTIONS) {
+      if (!finalAnswers[question.key]) {
+        setError('추가 설문의 모든 문항에 응답해 주세요.');
+        document
+          .getElementById(`final-question-${question.key}`)
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return false;
+      }
+    }
+
+    setError('');
+    return true;
+  };
+
+  const collectRoundAnswers = () => {
+    const questionElements = document.querySelectorAll('[data-question-id]');
+    const answers: Record<string, string> = {};
+
+    questionElements.forEach((element) => {
+      const id = element.getAttribute('data-question-id');
+      const checked = element.querySelector(
+        'input[type="radio"]:checked',
+      ) as HTMLInputElement | null;
+
+      if (id && checked) {
+        answers[id] = checked.value;
+      }
+    });
+
+    return answers;
+  };
+
+  const handleRoundSubmit = async () => {
     if (!validateInputs()) return;
-    if (isSubmitting) return; // 중복 클릭 방지
+    if (isSubmitting) return;
     if (currentRound > TOTAL_ROUNDS) {
       window.alert('이미 모든 설문이 완료되었습니다.');
       return;
     }
 
-    const questionElements = document.querySelectorAll('[data-question-id]');
-    const answers: Record<string, string> = {};
-    
-    questionElements.forEach((elem) => {
-      const id = elem.getAttribute('data-question-id');
-      const checked = (elem as HTMLInputElement).querySelector('input[type="radio"]:checked') as HTMLInputElement;
-      if (checked) {
-        answers[id!] = checked.value;
-      }
-    });
+    const answers = collectRoundAnswers();
 
     if (Object.keys(answers).length < questions.length) {
-      setError('모든 문항에 답변해 주세요.');
+      setError('모든 문항에 응답해 주세요.');
       return;
     }
 
-    // 모든 검증 통과 후에만 저장 시작
     setIsSubmitting(true);
 
     try {
@@ -314,34 +568,14 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name,
-          affiliation,
-          job,
-          years,
-          employeeId,
-          position,
-          department,
-          gender,
-          dateOfBirth,
-          officePhone,
-          companyEmail,
-          railroadCertification,
-          jobEducation,
-          healthCheckDate,
-          bodyTemperature,
-          systolicBP,
-          diastolicBP,
-          pulse,
-          workType,
-          workTime,
-          employeeCardNumber,
+          ...profile,
           round: currentRound,
           selectedQuestions: questionIds,
-          questions: questions.map((q) => ({
-            id: q.id,
-            number: q.text.split('.')[0] + '.',
-            conditions: q.conditions,
-            answer: answers[q.id],
+          questions: questions.map((question) => ({
+            id: question.id,
+            number: question.text.split('.')[0] + '.',
+            conditions: question.conditions,
+            answer: answers[question.id],
           })),
         }),
       });
@@ -349,31 +583,96 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
       if (!response.ok) {
         const errorData = await response.json();
         console.error('API Error:', errorData);
-        console.error('Error details:', JSON.stringify(errorData, null, 2));
-        throw new Error(errorData.error || errorData.message || '저장 실패');
+        throw new Error(errorData.error || errorData.message || '설문 저장 실패');
       }
 
       const result = await response.json();
-      console.log('Save success:', result);
+      const insertedId =
+        typeof result.id === 'string' && result.id.trim() ? result.id : '';
+      const nextResponseIds = insertedId
+        ? [...savedResponseIds, insertedId]
+        : savedResponseIds;
+
+      setSavedResponseIds(nextResponseIds);
 
       if (currentRound < TOTAL_ROUNDS) {
-        // URL 없이 깔끔하게 alert 표시
-        window.alert(`${currentRound}/${TOTAL_ROUNDS}회 완료 및 저장되었습니다.`);
-        const allRadios = document.querySelectorAll('input[type="radio"]');
-        allRadios.forEach((radio) => {
+        window.alert(
+          `${currentRound}/${TOTAL_ROUNDS}회차가 저장되었습니다.`,
+        );
+        const roundRadios = document.querySelectorAll(
+          'input[type="radio"][name^="question-"]',
+        );
+        roundRadios.forEach((radio) => {
           (radio as HTMLInputElement).checked = false;
         });
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        setCurrentRound(currentRound + 1);
-      } else {
-        window.alert('모든 설문이 완료되었습니다. 감사합니다!');
-        setCompleted(true);
+        setCurrentRound((prev) => prev + 1);
+        return;
       }
+
+      window.alert(
+        '30회차 설문이 저장되었습니다. 마지막 추가 설문에 응답해 주세요.',
+      );
+      setIsFinalSurveyStep(true);
+      setError('');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       console.error('Survey save error:', err);
-      console.error('Error type:', typeof err);
-      console.error('Error details:', err);
-      setError('저장 중 오류가 발생했습니다.');
+      setError('설문 저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleFinalAnswerChange = (key: FinalSurveyKey, value: string) => {
+    setFinalAnswers((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+    setError('');
+  };
+
+  const handleFinalSurveySubmit = async () => {
+    if (!validateFinalSurvey()) return;
+    if (isSubmitting) return;
+    if (savedResponseIds.length === 0) {
+      setError('저장된 설문 응답을 찾지 못했습니다. 다시 시도해 주세요.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('/api/survey', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          responseIds: savedResponseIds,
+          occupationDetail: finalAnswers.occupationDetail,
+          overtimePeriod: finalAnswers.overtimePeriod,
+          overtimeLong: finalAnswers.overtimeLong,
+          physicalEffort: finalAnswers.physicalEffort,
+          cognitiveFocus: finalAnswers.cognitiveFocus,
+          accidentLoss: finalAnswers.accidentLoss,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Final survey API Error:', errorData);
+        throw new Error(
+          errorData.error || errorData.message || '추가 설문 저장 실패',
+        );
+      }
+
+      await response.json();
+      setCompleted(true);
+      setIsFinalSurveyStep(false);
+      setError('');
+      window.alert('추가 설문까지 모두 저장되었습니다. 감사합니다.');
+    } catch (err) {
+      console.error('Final survey save error:', err);
+      setError('추가 설문 저장 중 오류가 발생했습니다.');
     } finally {
       setIsSubmitting(false);
     }
@@ -381,406 +680,249 @@ export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) 
 
   const handleStartSurvey = () => {
     if (!validateInputs()) return;
+    setCurrentRound(1);
+    setSavedResponseIds([]);
+    setFinalAnswers({ ...INITIAL_FINAL_ANSWERS });
+    setIsFinalSurveyStep(false);
     setIsInfoFormFilled(true);
     setError('');
   };
 
-  const psfNames = questionIds.map(id => {
-    const question = SURVEY_DATA.find(q => q.id === id);
-    return question ? `${id}번(${question.psf})` : `${id}번`;
-  }).join(', ');
+  const psfNames = questionIds
+    .map((id) => {
+      const question = SURVEY_DATA.find((item) => item.id === id);
+      return question ? `${id}번 (${question.psf})` : `${id}번`;
+    })
+    .join(', ');
+
+  const renderProfileField = (field: ProfileFieldConfig) => {
+    const commonClassName =
+      'w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent';
+
+    return (
+      <div key={field.key}>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          {field.label} <span className="text-red-500">*</span>
+        </label>
+
+        {field.type === 'select' ? (
+          <select
+            ref={(node) => {
+              fieldRefs.current[field.key] = node;
+            }}
+            value={profile[field.key]}
+            onChange={(event) => updateProfile(field.key, event.target.value)}
+            className={commonClassName}
+          >
+            {field.options?.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            ref={(node) => {
+              fieldRefs.current[field.key] = node;
+            }}
+            type={field.type}
+            value={profile[field.key]}
+            onChange={(event) => updateProfile(field.key, event.target.value)}
+            className={commonClassName}
+            placeholder={field.placeholder}
+          />
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto bg-white rounded-lg shadow p-8">
-        {/* 완료 화면 */}
         {completed && (
           <div className="text-center py-12">
             <div className="mb-6">
-              <svg className="mx-auto h-24 w-24 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="mx-auto h-24 w-24 text-green-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">설문이 완료되었습니다!</h2>
-            <p className="text-lg text-gray-600 mb-2">총 {TOTAL_ROUNDS}회의 설문에 응답해 주셔서 감사합니다.</p>
-            <p className="text-sm text-gray-500">이 페이지를 닫으셔도 됩니다.</p>
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              설문이 완료되었습니다!
+            </h2>
+            <p className="text-lg text-gray-600 mb-2">
+              총 {TOTAL_ROUNDS}회의 반복 설문과 마지막 추가 설문 응답이 저장되었습니다.
+            </p>
+            <p className="text-sm text-gray-500">
+              페이지를 닫으셔도 됩니다.
+            </p>
           </div>
         )}
 
-        {/* 설문 진행 화면 */}
         {!completed && (
           <>
-            {/* 헤더 */}
             <div className="mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">설문지</h1>
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                {isFinalSurveyStep ? '마지막 추가 설문' : '설문지'}
+              </h1>
               <p className="text-gray-600">
-                총 {TOTAL_ROUNDS}번의 설문을 완료해 주세요. 이 그룹은 {psfNames} PSF에 대한 설문입니다.
+                {isFinalSurveyStep
+                  ? '30회 반복 설문이 끝났습니다. 아래 6개 문항에 응답하면 설문이 최종 완료됩니다.'
+                  : `${groupName}에서 ${psfNames} PSF 설문을 총 ${TOTAL_ROUNDS}회 진행해 주세요.`}
               </p>
             </div>
 
-        {/* 정보 입력 섹션 */}
-        {!isInfoFormFilled && (
-          <>
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-red-700">{error}</p>
-              </div>
+            {!isInfoFormFilled && (
+              <>
+                {error && (
+                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+                    <p className="text-red-700">{error}</p>
+                  </div>
+                )}
+
+                <div className="space-y-6">
+                  {PROFILE_FIELDS.map(renderProfileField)}
+
+                  <button
+                    onClick={handleStartSurvey}
+                    className="w-full mt-6 px-6 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700"
+                  >
+                    설문 시작
+                  </button>
+                </div>
+              </>
             )}
 
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  성명을 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={nameRef}
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="홍길동"
-                />
-              </div>
+            {isInfoFormFilled && !isFinalSurveyStep && (
+              <>
+                {error && (
+                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+                    <p className="text-red-700">{error}</p>
+                  </div>
+                )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  회사를 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={affiliationRef}
-                  type="text"
-                  value={affiliation}
-                  onChange={(e) => setAffiliation(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="회사명"
-                />
-              </div>
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                  <p className="text-blue-700">
+                    현재: {currentRound}/{TOTAL_ROUNDS}회차 - PSF: {psfNames}
+                  </p>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  근속기간(년)을 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={yearsRef}
-                  type="text"
-                  value={years}
-                  onChange={(e) => setYears(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="10"
-                />
-              </div>
+                <div className="space-y-12 mb-8">
+                  {questions.map((question) => (
+                    <MultipleChoiceQuestion
+                      key={question.id}
+                      question={question}
+                    />
+                  ))}
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  종사자 구분 <span className="text-red-500">*</span>
-                </label>
-                <select
-                  ref={jobRef}
-                  value={job}
-                  onChange={(e) => setJob(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="기관사">기관사</option>
-                  <option value="관제사">관제사</option>
-                  <option value="승무원">승무원</option>
-                  <option value="작업자">작업자</option>
-                </select>
-              </div>
+                <div className="flex gap-4 justify-end pt-8 border-t">
+                  <button
+                    onClick={handleRoundSubmit}
+                    disabled={isSubmitting}
+                    className={`px-6 py-2 rounded-md font-medium ${
+                      isSubmitting
+                        ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
+                  >
+                    {isSubmitting ? '저장 중...' : '회차 저장'}
+                  </button>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  사번을 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={employeeIdRef}
-                  type="text"
-                  value={employeeId}
-                  onChange={(e) => setEmployeeId(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="사번 입력"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  직급을 적어주세요. ex) 운전3급, 토목4급 등 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={positionRef}
-                  type="text"
-                  value={position}
-                  onChange={(e) => setPosition(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="운전3급, 토목4급 등"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  소속을 적어주세요. ex) OO본부 OO처 등 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={departmentRef}
-                  type="text"
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="OO본부 OO처 등"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  성별 <span className="text-red-500">*</span>
-                </label>
-                <select
-                  ref={genderRef}
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="선택">선택</option>
-                  <option value="남성">남성</option>
-                  <option value="여성">여성</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  생년월일 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={dateOfBirthRef}
-                  type="date"
-                  value={dateOfBirth}
-                  onChange={(e) => setDateOfBirth(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  사무실 연락처를 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={officePhoneRef}
-                  type="tel"
-                  value={officePhone}
-                  onChange={(e) => setOfficePhone(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="02-1234-5678"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  회사 메일을 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={companyEmailRef}
-                  type="email"
-                  value={companyEmail}
-                  onChange={(e) => setCompanyEmail(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="email@company.com"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  철도 관련 자격증 보유 여부를 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={railroadCertificationRef}
-                  type="text"
-                  value={railroadCertification}
-                  onChange={(e) => setRailroadCertification(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="유 또는 무"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  직무교육이수 여부(2학점 인정)를 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={jobEducationRef}
-                  type="text"
-                  value={jobEducation}
-                  onChange={(e) => setJobEducation(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="2학점 인정"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  당신의 건강검진 일시를 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={healthCheckDateRef}
-                  type="datetime-local"
-                  value={healthCheckDate}
-                  onChange={(e) => setHealthCheckDate(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  당신의 건강검진시 체온을 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={bodyTemperatureRef}
-                  type="text"
-                  value={bodyTemperature}
-                  onChange={(e) => setBodyTemperature(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="36.5"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  당신의 건강검진시 수축기 혈압을 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={systolicBPRef}
-                  type="text"
-                  value={systolicBP}
-                  onChange={(e) => setSystolicBP(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="120"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  당신의 건강검진시 이완기 혈압을 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={diastolicBPRef}
-                  type="text"
-                  value={diastolicBP}
-                  onChange={(e) => setDiastolicBP(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="80"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  당신의 건강검진시 맥박을 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={pulseRef}
-                  type="text"
-                  value={pulse}
-                  onChange={(e) => setPulse(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="70"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  당신의 근무유형을 적어주세요. ex) 야간격일 O조, 4조 2교대 O조, 통상일근, 시차O형 등 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={workTypeRef}
-                  type="text"
-                  value={workType}
-                  onChange={(e) => setWorkType(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="야간격일 O조, 4조 2교대 O조, 통상일근, 시차O형 등"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  당신의 출근/퇴근일시를 적어주세요. ex) 09:00/18:00 등 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={workTimeRef}
-                  type="text"
-                  value={workTime}
-                  onChange={(e) => setWorkTime(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="09:00/18:00 등"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  당신의 사원증 출입증 일련번호를 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={employeeCardNumberRef}
-                  type="text"
-                  value={employeeCardNumber}
-                  onChange={(e) => setEmployeeCardNumber(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="일련번호"
-                />
-              </div>
-
-              <button
-                onClick={handleStartSurvey}
-                className="w-full mt-6 px-6 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700"
-              >
-                설문 시작
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* 설문 진행 중 */}
-        {isInfoFormFilled && (
-          <>
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-red-700">{error}</p>
-              </div>
+                <div className="mt-8 text-center">
+                  <p className="text-sm text-gray-600">
+                    진행률 {currentRound - 1}/{TOTAL_ROUNDS}회 완료
+                  </p>
+                </div>
+              </>
             )}
 
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-blue-700">
-                현재: {currentRound}/{TOTAL_ROUNDS}회 - PSF: {psfNames}
-              </p>
-            </div>
+            {isInfoFormFilled && isFinalSurveyStep && (
+              <>
+                {error && (
+                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+                    <p className="text-red-700">{error}</p>
+                  </div>
+                )}
 
-            <div className="space-y-12 mb-8">
-              {questions.map((question) => (
-                <MultipleChoiceQuestion
-                  key={question.id}
-                  question={question}
-                />
-              ))}
-            </div>
+                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-md">
+                  <p className="text-amber-800">
+                    반복 설문 30회는 이미 저장되었습니다. 아래 추가 6문항까지 제출하면
+                    전체 설문이 완료됩니다.
+                  </p>
+                </div>
 
-            <div className="flex gap-4 justify-end pt-8 border-t">
-              <button
-                onClick={handleComplete}
-                disabled={completed || isSubmitting}
-                className={`px-6 py-2 rounded-md font-medium ${
-                  completed || isSubmitting
-                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-              >
-                {isSubmitting ? '저장 중...' : '완료'}
-              </button>
-            </div>
+                <div className="space-y-10 mb-8">
+                  {FINAL_SURVEY_QUESTIONS.map((question) => (
+                    <div
+                      key={question.key}
+                      id={`final-question-${question.key}`}
+                      className="border-l-4 border-emerald-500 pl-6"
+                    >
+                      <h3 className="text-lg font-bold text-gray-900">
+                        {question.question}
+                      </h3>
 
-            <div className="mt-8 text-center">
-              <p className="text-sm text-gray-600">
-                진행률: {completed ? TOTAL_ROUNDS : currentRound - 1}/{TOTAL_ROUNDS}회 완료
-              </p>
-            </div>
+                      <div className="mt-4 space-y-3">
+                        {question.options.map((option) => {
+                          const isChecked = finalAnswers[question.key] === option;
+
+                          return (
+                            <label
+                              key={option}
+                              className={`flex items-start p-4 border rounded-lg cursor-pointer transition-colors ${
+                                isChecked
+                                  ? 'border-emerald-500 bg-emerald-50'
+                                  : 'border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name={`final-${question.key}`}
+                                value={option}
+                                checked={isChecked}
+                                onChange={() =>
+                                  handleFinalAnswerChange(question.key, option)
+                                }
+                                className="mt-1 w-4 h-4 text-emerald-600"
+                              />
+                              <span className="ml-3 text-gray-900">
+                                {option}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-4 justify-end pt-8 border-t">
+                  <button
+                    onClick={handleFinalSurveySubmit}
+                    disabled={isSubmitting}
+                    className={`px-6 py-2 rounded-md font-medium ${
+                      isSubmitting
+                        ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                        : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                    }`}
+                  >
+                    {isSubmitting ? '저장 중...' : '최종 제출'}
+                  </button>
+                </div>
+              </>
+            )}
           </>
-        )}
-        </>
         )}
       </div>
     </div>

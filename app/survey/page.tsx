@@ -66,22 +66,6 @@ export default function SurveyPage() {
     }
   }, [currentRound, showQuestionSelector, selectedQuestionIds]);
 
-  const generateCombinations = (arrays: string[][]): string[][] => {
-    if (arrays.length === 0) return [];
-    if (arrays.length === 1) return arrays[0].map((item) => [item]);
-
-    const result: string[][] = [];
-    const restCombinations = generateCombinations(arrays.slice(1));
-
-    for (const item of arrays[0]) {
-      for (const rest of restCombinations) {
-        result.push([item, ...rest]);
-      }
-    }
-
-    return result;
-  };
-
   const populateQuestions = () => {
     const newQuestions = SURVEY_DATA.filter((qDef: any) => selectedQuestionIds.includes(qDef.id))
       .map((qDef: any) => {
@@ -89,8 +73,11 @@ export default function SurveyPage() {
         const listsToCombing = keysForThisQ.map((key: string) => ALL_OPTION_LISTS[key as keyof typeof ALL_OPTION_LISTS]);
         
         // 랜덤 시나리오 선택
-        const allScenarios = generateCombinations(listsToCombing);
-        const selectedScenario = allScenarios[Math.floor(Math.random() * allScenarios.length)];
+        // 문항마다 보기를 독립적으로 고른다. 모든 조합을 만든 뒤 하나를 고르는 것과 같은 균등 분포이고,
+        // 조합 수(환경 문항은 수십만 개)만큼 메모리를 쓰지 않는다.
+        const selectedScenario = listsToCombing.map(
+          (options: string[]) => options[Math.floor(Math.random() * options.length)]
+        );
 
         const qConditions: Record<string, string> = {};
         const qDetails: Record<string, any> = {};

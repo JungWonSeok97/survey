@@ -138,14 +138,13 @@ export async function requireAdmin(request: NextRequest) {
   return verifyAdminToken(request.cookies.get(ADMIN_COOKIE)?.value);
 }
 export async function verifyAdminToken(token?: string) {
-  if (!token) throw new HttpError(401, "관리자 로그인이 필요합니다.");
-  const { data, error } = await db().auth.getUser(token);
-  if (error || !data.user)
-    throw new HttpError(
-      401,
-      "로그인 시간이 만료되었습니다. 다시 로그인해주세요.",
-    );
-  if (data.user.app_metadata?.survey_admin !== true)
-    throw new HttpError(403, "설문 관리자 권한이 필요합니다.");
-  return data.user;
+  if (!token || !/^[a-f0-9]{64}$/.test(token)) throw new HttpError(401, "관리자 로그인이 필요합니다.");
+  const { data: session, error } = await db().from("survey_admin_sessions")
+    .select("admin_id").eq("token_hash", hash(token)).gt("expires_at", new Date().toISOString()).maybeSingle();
+  if (error) throw new HttpError(503, "관리자 로그인 상태를 확인하지 못했습니다.");
+  if (!session) throw new HttpError(401, "로그인 시간이 만료되었습니다. 다시 로그인해주세요.");
+  const account = await db().from("survey_admins").select("id,username,is_active").eq("id", session.admin_id).maybeSingle();
+  if (account.error) throw new HttpError(503, "관리자 계정을 확인하지 못했습니다.");
+  if (!account.data?.is_active) throw new HttpError(401, "사용할 수 없는 관리자 계정입니다.");
+  return account.data;
 }

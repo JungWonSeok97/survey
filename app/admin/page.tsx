@@ -1,15 +1,19 @@
 "use client";
-import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import PageShell from "@/components/PageShell";
 import { requestJSON } from "@/lib/client-api";
 export default function AdminLoginPage() {
+  return <Suspense fallback={<p role="status">로그인 화면을 불러오는 중…</p>}><AdminLoginForm /></Suspense>;
+}
+function AdminLoginForm() {
   const router = useRouter();
-  const [email, setEmail] = useState(""),
+  const [username, setUsername] = useState(""),
     [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const pending = useRef(false);
+  const changed = useSearchParams().get("passwordChanged") === "1";
   async function login(event: React.FormEvent) {
     event.preventDefault();
     if (pending.current) return;
@@ -19,7 +23,7 @@ export default function AdminLoginPage() {
     try {
       await requestJSON("/api/admin/login", {
         method: "POST",
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ username: username.trim(), password }),
       });
       setPassword("");
       router.replace("/admin/dashboard");
@@ -37,15 +41,16 @@ export default function AdminLoginPage() {
         <p className="eyebrow">RESEARCH ADMIN</p>
         <h1>응답 관리 로그인</h1>
         <p className="muted">등록된 관리자 계정으로 로그인해주세요.</p>
+        {changed && <p className="alert info" role="status">비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요.</p>}
         <form onSubmit={login}>
           <div className="field">
-            <label htmlFor="email">이메일</label>
+            <label htmlFor="username">아이디</label>
             <input
-              id="email"
-              type="email"
+              id="username"
+              type="text"
               autoComplete="username"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
               disabled={busy}
             />

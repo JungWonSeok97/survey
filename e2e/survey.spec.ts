@@ -171,6 +171,6 @@ test("group assignment and unauthenticated admin access", async ({
   expect(response.status()).toBe(401);
   await page.goto("/admin/dashboard");
   await expect(page).toHaveURL(/\/admin$/);
-  await expect(page.getByLabel("이메일", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("아이디", { exact: true })).toBeVisible();
   await expect(page.getByLabel("비밀번호", { exact: true })).toBeVisible();
 });

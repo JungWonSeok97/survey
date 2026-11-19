@@ -10,6 +10,7 @@ import { GET as listResponses } from "../app/api/admin/responses/route";
 import { GET as exportResponses } from "../app/api/admin/export/route";
 import { POST as login } from "../app/api/admin/login/route";
 import { POST as logout } from "../app/api/admin/logout/route";
+import { hashPassword } from "../src/lib/admin-password";
 import { csvCell } from "../src/lib/admin-data";
 import { hash, OWNER_COOKIE, ADMIN_COOKIE } from "../src/lib/server";
 import { generateScenarios, SURVEY_VERSION } from "../src/lib/survey-schema";
@@ -30,8 +31,10 @@ const request = (
     headers: { origin, "content-type": "application/json", cookie },
     body: data === undefined ? undefined : JSON.stringify(data),
   });
-const adminCookie = `${ADMIN_COOKIE}=verified-admin`;
+const adminToken = "c".repeat(64);
+const adminCookie = `${ADMIN_COOKIE}=${adminToken}`;
 test("actual API handlers enforce authentication, validate before writes, preserve session and export complete conditions", async () => {
+  const passwordHash = await hashPassword("test-password");
   const originalFetch = globalThis.fetch;
   const env = { ...process.env };
   process.env.SUPABASE_URL = "https://survey.test";
@@ -51,34 +54,24 @@ test("actual API handlers enforce authentication, validate before writes, preser
           : input.url,
     );
     calls.push(url);
-    const headers = new Headers(init?.headers);
+
     const payload = init?.body ? JSON.parse(String(init.body)) : undefined;
     const reply = (value: unknown, status = 200, extra = {}) =>
       new Response(JSON.stringify(value), {
         status,
         headers: { "Content-Type": "application/json", ...extra },
       });
-    if (url.pathname === "/auth/v1/user") {
-      if (headers.get("authorization") === "Bearer verified-admin")
-        return reply({ id: "admin", app_metadata: { survey_admin: true } });
-      if (headers.get("authorization") === "Bearer ordinary-user")
-        return reply({
-          id: "user",
-          app_metadata: {},
-          user_metadata: { survey_admin: true },
-        });
-      return reply({ error: "invalid_token", message: "invalid token" }, 401);
+    if (url.pathname === "/rest/v1/survey_admin_sessions") {
+      if (init?.method === "DELETE") return new Response(null, {status:204});
+      assert.ok(url.searchParams.has("expires_at"));
+      return reply(url.searchParams.get("token_hash") === `eq.${hash(adminToken)}` ? [{admin_id:"admin"}] : []);
     }
-    if (url.pathname === "/auth/v1/token")
-      return reply({
-        access_token: "verified-admin",
-        expires_in: 3600,
-        refresh_token: "unused",
-        token_type: "bearer",
-        user: { id: "admin", app_metadata: { survey_admin: true } },
-      });
-    if (url.pathname === "/auth/v1/logout")
-      return new Response(null, { status: 204 });
+    if (url.pathname === "/rest/v1/survey_admins") return reply([{id:"admin",username:"admin",is_active:true,password_hash:passwordHash}]);
+    if (url.pathname === "/rest/v1/rpc/issue_survey_admin_session") {
+      assert.match(payload.p_token_hash, /^[a-f0-9]{64}$/);
+      assert.equal(payload.p_password_hash, passwordHash);
+      return reply(true);
+    }
     if (failDatabase)
       return reply(
         { code: "XX000", message: "SECRET database details test@example.com" },
@@ -275,11 +268,11 @@ test("actual API handlers enforce authentication, validate before writes, preser
               "/api/admin/responses",
               "GET",
               undefined,
-              `${ADMIN_COOKIE}=ordinary-user`,
+              `${ADMIN_COOKIE}=${"d".repeat(64)}`,
             ),
           )
         ).status,
-        403,
+        401,
       );
     }
     const admin = await listResponses(
@@ -293,7 +286,7 @@ test("actual API handlers enforce authentication, validate before writes, preser
       request(
         "/api/admin/login",
         "POST",
-        { email: "admin@example.com", password: "test-password" },
+        { username: "admin", password: "test-password" },
         "",
       ),
     );

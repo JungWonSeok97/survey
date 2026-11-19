@@ -45,7 +45,9 @@ DB 기반 요청 제한은 설문 생성 IP당 시간당 300회, 관리자 로�
 
 ## 관리자와 내보내기
 
-`/admin`에서 Supabase Auth 이메일·비밀번호로 로그인합니다. 매 관리자 API 호출에서 Auth 서버에 사용자를 확인하고 `app_metadata.survey_admin === true`인 경우에만 허용합니다. 사용자가 바꿀 수 있는 `user_metadata`나 브라우저 플래그는 권한 근거로 사용하지 않습니다. 관리자 토큰은 HttpOnly / SameSite=Strict 쿠키에 저장하며, 운영 환경에서는 Secure를 적용합니다. 세션은 최대 1시간이고 만료 후 다시 로그인합니다.
+`/admin`에서 아이디·비밀번호로 로그인합니다. `survey_admins`에는 아이디와 무작위 salt를 사용한 scrypt 해시만 저장하며 평문 비밀번호는 저장하지 않습니다. `survey_admin_sessions`에는 세션 토큰의 SHA-256 해시와 만료 시각만 저장합니다. 매 관리자 API 요청에서 유효 세션과 계정 활성 상태를 확인합니다. 두 테이블은 RLS와 권한 제한으로 브라우저에서 직접 접근할 수 없습니다.
+
+관리자 쿠키는 HttpOnly / SameSite=Strict이며 운영에서는 Secure를 적용합니다. 세션은 1시간이고 로그아웃 시 DB에서 해당 세션을 폐기합니다. 대시보드의 비밀번호 변경 기능은 현재 비밀번호를 확인하고 12~256자의 새 비밀번호를 저장한 뒤 모든 로그인 세션을 폐기합니다. 로그인은 IP당 15분 15회, 계정당 15분 30회로 제한합니다.
 
 - 새 설문은 설문별 고유 완료 회차를 표시합니다. 한 사람이 여러 설문을 시작할 수 있으므로 목록의 건수는 참여 인원과 다릅니다.
 - 기존 응답은 원래의 회차 기록으로 표시합니다. 과거 데이터에는 신뢰할 수 있는 설문 ID가 없으므로 참여자별 완료율을 임의로 계산하지 않습니다.
@@ -89,15 +91,7 @@ npm run test:e2e
 
 1. 기존 DB를 백업하고 전환 시간을 정합니다. 브라우저에서 이전 설문을 작성 중인 사용자는 전환 뒤 새로고침해야 합니다. 이전 형식의 응답 요청은 새 API가 허용하지 않습니다.
 2. Supabase SQL Editor에서 `supabase/migrations/202611190001_survey_v2.sql`을 실행합니다. 이 스크립트는 기존 응답을 삭제하지 않고 새 테이블·함수를 만들며, 기존 테이블을 포함해 `anon`·`authenticated`의 직접 접근 권한을 제거합니다. 기존 관리자 페이지의 직접 DB 조회도 이 시점부터 차단됩니다.
-3. Supabase Auth의 Users에서 관리자 계정을 생성하고 이메일 확인 상태를 준비합니다. SQL Editor에서 **실제 관리자 계정의 UUID로 치환한 뒤** 아래 명령으로 앱 권한을 부여합니다. 기존 다른 앱 메타데이터는 보존합니다.
-
-```sql
-update auth.users
-set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"survey_admin":true}'::jsonb
-where id = '실제 관리자 계정 UUID'::uuid;
-```
-
-권한 철회는 동일 계정의 `raw_app_meta_data`에서 `survey_admin` 키를 제거하면 됩니다. 일반 사용자가 변경 가능한 사용자 메타데이터에 권한을 기록하지 않습니다.
+3. `supabase/migrations/202611190002_survey_admins.sql`을 실행합니다. `survey_admins`에 관리자 아이디와 `src/lib/admin-password.ts`의 `hashPassword`가 생성한 해시를 등록합니다. 비밀번호·운영 해시는 Git 또는 배포 파일에 넣지 않습니다. 계정 비활성화는 `is_active=false`로 설정합니다. 초기 비밀번호를 전달받은 관리자는 대시보드에서 변경할 수 있습니다.
 
 4. Vercel 서버 환경변수에 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_ORIGIN`을 설정합니다. 서비스 역할 키를 `NEXT_PUBLIC_` 변수로 만들지 않습니다. 운영 `APP_ORIGIN`은 `https://survey-liart-nine.vercel.app`이며 커스텀 도메인으로 접속한다면 해당 출처로 설정합니다. 미리보기 배포는 별도의 DB와 해당 미리보기 출처를 사용합니다.
 5. 새 코드를 빌드·배포합니다. 새 UI와 DB 마이그레이션을 함께 반영해야 합니다. 기존 코드만으로 롤백하면 제거된 익명 DB 접근은 자동 복구되지 않습니다.

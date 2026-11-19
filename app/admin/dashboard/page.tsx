@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import AdminPasswordForm from "@/components/AdminPasswordForm";
 import PageShell from "@/components/PageShell";
 import { ApiError, requestJSON } from "@/lib/client-api";
 import { FIELD_GROUPS } from "@/lib/survey-schema";
@@ -158,6 +159,7 @@ export default function AdminDashboard() {
           로그아웃
         </button>
       </header>
+      <AdminPasswordForm />
       <section className="panel admin-toolbar">
         <div className="source-tabs" role="group" aria-label="설문 데이터 구분">
           {[

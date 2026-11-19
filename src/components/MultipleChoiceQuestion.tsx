@@ -1,74 +1,80 @@
-'use client';
+import type { Scenario } from "@/lib/survey-schema";
 
-interface Question {
-  id: number;
-  text: string;
-  conditions: Record<string, string>;
-  options: string[];
-  details: Record<string, any>;
-}
-
-interface MultipleChoiceQuestionProps {
-  question: Question;
-}
-
-export default function MultipleChoiceQuestion({ question }: MultipleChoiceQuestionProps) {
-  const questionNumber = question.text.split('.')[0] + '.';
-  const questionBody = question.text.split('. ').slice(1).join('. ');
-
+export default function MultipleChoiceQuestion({
+  question,
+  value,
+  onChange,
+  disabled,
+}: {
+  question: Scenario;
+  value: string;
+  onChange: (value: string) => void;
+  disabled: boolean;
+}) {
+  const entries = Object.entries(question.conditions);
+  const groups =
+    question.id === 6
+      ? [
+          { title: "실외 기상", items: entries.slice(0, 7) },
+          { title: "공간·노면", items: entries.slice(7, 9) },
+          { title: "실내 쾌적성", items: entries.slice(9, 12) },
+          { title: "소음·가시성", items: entries.slice(12) },
+        ]
+      : [{ title: "제시된 작업조건", items: entries }];
   return (
-    <div data-question-id={question.id} className="border-l-4 border-blue-500 pl-6">
-      {/* 질문 제목 */}
-      <div className="mb-6">
-        <h3 className="text-lg font-bold text-gray-900">
-          <span className="text-blue-600">{questionNumber}</span> {questionBody}
-        </h3>
-      </div>
-
-      {/* 조건 섹션 */}
-      <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-        <h4 className="font-semibold text-gray-800 mb-4">조건</h4>
-        <div className="grid grid-cols-1 gap-3">
-          {Object.entries(question.conditions).map(([label, value]) => (
-            <div key={label} className="bg-white p-3 rounded border border-gray-200">
-              <p className="text-sm font-medium text-gray-700">• {label}: {value}</p>
-              
-              {/* 상세 설명 */}
-              {question.details[label] && (
-                <div className="mt-2 ml-4 text-sm text-gray-600">
-                  {question.details[label].description && (
-                    <p>- {question.details[label].description}</p>
-                  )}
-                  {question.details[label].description2 && (
-                    <p>- {question.details[label].description2}</p>
-                  )}
-                  {question.details[label].description3 && (
-                    <p>- {question.details[label].description3}</p>
-                  )}
-                  {question.details[label].nominal && (
-                    <p>- Nominal: {question.details[label].nominal}</p>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+    <article
+      className="scenario-card"
+      aria-labelledby={`psf-${question.id}-title`}
+    >
+      <div className="scenario-heading">
+        <span className="number-badge">
+          {String(question.id).padStart(2, "0")}
+        </span>
+        <div>
+          <p className="eyebrow">PSF {question.id}</p>
+          <h2 id={`psf-${question.id}-title`}>{question.psf}</h2>
         </div>
+        <span className="tag">{entries.length}개 조건</span>
       </div>
-
-      {/* 선택지 */}
-      <div className="space-y-3">
-        {question.options.map((option) => (
-          <label key={option} className="flex items-center p-3 border border-gray-300 rounded-lg hover:bg-blue-50 cursor-pointer">
-            <input
-              type="radio"
-              name={`question-${question.id}`}
-              value={option}
-              className="w-4 h-4 text-blue-600"
-            />
-            <span className="ml-3 text-gray-900 font-medium">{option}</span>
-          </label>
+      <p className="question-text">{question.text.replace(/^\d+\.\s*/, "")}</p>
+      <div className="condition-groups">
+        {groups.map((group) => (
+          <section key={group.title} className="condition-group">
+            <h3>{group.title}</h3>
+            <dl className="conditions">
+              {group.items.map(([label, text]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{text}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
         ))}
       </div>
-    </div>
+      <fieldset className="answer-fieldset" disabled={disabled}>
+        <legend>위 조건을 종합하면 어느 수준에 해당하나요?</legend>
+        <p className="field-hint">
+          본인의 판단에 가장 가까운 답변 하나를 선택해주세요.
+        </p>
+        <div className="answer-options">
+          {question.options.map((option) => (
+            <label
+              key={option.code}
+              className={`answer-option ${value === option.code ? "selected" : ""}`}
+            >
+              <input
+                type="radio"
+                name={`question-${question.id}`}
+                value={option.code}
+                checked={value === option.code}
+                onChange={() => onChange(option.code)}
+              />
+              <span>{option.label}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+    </article>
   );
 }

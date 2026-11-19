@@ -1,788 +1,753 @@
-'use client';
+"use client";
+import { useCallback, useEffect, useRef, useState } from "react";
+import PageShell from "./PageShell";
+import MultipleChoiceQuestion from "./MultipleChoiceQuestion";
+import ClockField from "./ClockField";
+import { SURVEY_DATA } from "@/lib/surveyData";
+import {
+  FIELD_GROUPS,
+  JOBS,
+  SURVEY_VERSION,
+  TOTAL_ROUNDS,
+  validateParticipant,
+  validateQuestionIds,
+  ValidationError,
+} from "@/lib/survey-schema";
+import type { Participant, SurveySession } from "@/lib/survey-schema";
+import { ApiError, requestJSON } from "@/lib/client-api";
 
-import { useState, useEffect, useRef } from 'react';
-import MultipleChoiceQuestion from '@/components/MultipleChoiceQuestion';
-import { SURVEY_DATA, ALL_OPTION_LISTS } from '@/lib/surveyData';
+type SessionReply = {
+  success: true;
+  session: SurveySession | null;
+  savedRound?: number;
+};
+const emptyProfile = () =>
+  Object.fromEntries(
+    FIELD_GROUPS.flatMap((group) =>
+      group.fields.map((field) => [field.key, ""]),
+    ),
+  );
+const draftKey = (session: SurveySession) =>
+  `rail-answers:${session.id}:${session.completed_rounds + 1}`;
 
-interface SurveyFormProps {
-  questionIds: [number, number];
-  groupName: string;
-}
-
-export default function SurveyForm({ questionIds, groupName }: SurveyFormProps) {
-  const [currentRound, setCurrentRound] = useState(1);
-  const [name, setName] = useState('');
-  const [affiliation, setAffiliation] = useState('');
-  const [years, setYears] = useState('');
-  const [job, setJob] = useState('기관사');
-  const [questions, setQuestions] = useState<any[]>([]);
-  const [completed, setCompleted] = useState(false);
-  const [error, setError] = useState('');
-  const [isInfoFormFilled, setIsInfoFormFilled] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // 새로 추가된 필드들
-  const [employeeId, setEmployeeId] = useState('');
-  const [position, setPosition] = useState('');
-  const [department, setDepartment] = useState('');
-  const [gender, setGender] = useState('선택');
-  const [dateOfBirth, setDateOfBirth] = useState('');
-  const [officePhone, setOfficePhone] = useState('');
-  const [companyEmail, setCompanyEmail] = useState('');
-  const [railroadCertification, setRailroadCertification] = useState('');
-  const [jobEducation, setJobEducation] = useState('');
-  const [healthCheckDate, setHealthCheckDate] = useState('');
-  const [bodyTemperature, setBodyTemperature] = useState('');
-  const [systolicBP, setSystolicBP] = useState('');
-  const [diastolicBP, setDiastolicBP] = useState('');
-  const [pulse, setPulse] = useState('');
-  const [workType, setWorkType] = useState('');
-  const [workTime, setWorkTime] = useState('');
-  const [employeeCardNumber, setEmployeeCardNumber] = useState('');
-
-  const TOTAL_ROUNDS = 30;
-
-  // 각 필드의 ref
-  const nameRef = useRef<HTMLInputElement>(null);
-  const affiliationRef = useRef<HTMLInputElement>(null);
-  const yearsRef = useRef<HTMLInputElement>(null);
-  const jobRef = useRef<HTMLSelectElement>(null);
-  const employeeIdRef = useRef<HTMLInputElement>(null);
-  const positionRef = useRef<HTMLInputElement>(null);
-  const departmentRef = useRef<HTMLInputElement>(null);
-  const genderRef = useRef<HTMLSelectElement>(null);
-  const dateOfBirthRef = useRef<HTMLInputElement>(null);
-  const officePhoneRef = useRef<HTMLInputElement>(null);
-  const companyEmailRef = useRef<HTMLInputElement>(null);
-  const railroadCertificationRef = useRef<HTMLInputElement>(null);
-  const jobEducationRef = useRef<HTMLInputElement>(null);
-  const healthCheckDateRef = useRef<HTMLInputElement>(null);
-  const bodyTemperatureRef = useRef<HTMLInputElement>(null);
-  const systolicBPRef = useRef<HTMLInputElement>(null);
-  const diastolicBPRef = useRef<HTMLInputElement>(null);
-  const pulseRef = useRef<HTMLInputElement>(null);
-  const workTypeRef = useRef<HTMLInputElement>(null);
-  const workTimeRef = useRef<HTMLInputElement>(null);
-  const employeeCardNumberRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (isInfoFormFilled) {
-      populateQuestions();
-    }
-  }, [currentRound, isInfoFormFilled]);
-
-  const generateCombinations = (arrays: string[][]): string[][] => {
-    if (arrays.length === 0) return [];
-    if (arrays.length === 1) return arrays[0].map((item) => [item]);
-
-    const result: string[][] = [];
-    const restCombinations = generateCombinations(arrays.slice(1));
-
-    for (const item of arrays[0]) {
-      for (const rest of restCombinations) {
-        result.push([item, ...rest]);
+export default function SurveyForm({
+  questionIds,
+  groupName,
+}: {
+  questionIds?: [number, number];
+  groupName?: string;
+}) {
+  const fixedIds = questionIds?.join(",") || "";
+  const [session, setSession] = useState<SurveySession | null>(null);
+  const [profile, setProfile] = useState<Participant>(emptyProfile);
+  const [selectedIds, setSelectedIds] = useState<number[]>(questionIds || []);
+  const [profileStep, setProfileStep] = useState(0);
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [booting, setBooting] = useState(true),
+    [loadFailed, setLoadFailed] = useState(false);
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [errorField, setErrorField] = useState("");
+  const [notice, setNotice] = useState("");
+  const saving = useRef(false),
+    resetDialog = useRef<HTMLDialogElement>(null);
+  const applySession = useCallback((next: SurveySession | null) => {
+    setSession(next);
+    setQuestionIndex(0);
+    setAnswers({});
+    setError("");
+    setErrorField("");
+    if (next) {
+      setProfile(next.participant);
+      setSelectedIds(next.question_ids);
+      try {
+        const draft = JSON.parse(
+          sessionStorage.getItem(draftKey(next)) || "{}",
+        );
+        const accepted: Record<string, string> = {};
+        for (const q of next.pending_questions)
+          if (q.options.some((option) => option.code === draft[q.id]))
+            accepted[q.id] = draft[q.id];
+        setAnswers(accepted);
+      } catch {
+        /* A local answer draft is optional; saved rounds are authoritative. */
       }
     }
-
-    return result;
-  };
-
-  const populateQuestions = () => {
-    const newQuestions = SURVEY_DATA.filter((qDef: any) => questionIds.includes(qDef.id))
-      .map((qDef: any) => {
-        const keysForThisQ: string[] = qDef.condition_keys;
-        const listsToCombing = keysForThisQ.map((key: string) => ALL_OPTION_LISTS[key as keyof typeof ALL_OPTION_LISTS]);
-        
-        // 랜덤 시나리오 선택
-        const allScenarios = generateCombinations(listsToCombing);
-        const selectedScenario = allScenarios[Math.floor(Math.random() * allScenarios.length)];
-
-        const qConditions: Record<string, string> = {};
-        const qDetails: Record<string, any> = {};
-        const labels = qDef.condition_labels;
-        const allDescriptions = qDef.condition_descriptions || {};
-
-        keysForThisQ.forEach((key: string, i: number) => {
-          const label = labels[key as keyof typeof labels];
-          const value = selectedScenario[i];
-          qConditions[label] = value;
-
-          if (allDescriptions[key as keyof typeof allDescriptions] && 
-              allDescriptions[key as keyof typeof allDescriptions][value]) {
-            qDetails[label] = allDescriptions[key as keyof typeof allDescriptions][value];
-          }
-        });
-
-        return {
-          ...qDef,
-          conditions: qConditions,
-          details: qDetails,
-        };
-      });
-
-    setQuestions(newQuestions);
-  };
-
-  const validateInputs = (): boolean => {
-    if (!name.trim()) {
-      setError('성명을 입력해 주세요.');
-      nameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      nameRef.current?.focus();
-      return false;
-    }
-
-    if (!/^[가-힣]+$/.test(name)) {
-      setError('성명에는 특수문자나 공백을 사용할 수 없습니다.');
-      nameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      nameRef.current?.focus();
-      return false;
-    }
-
-    if (!affiliation.trim()) {
-      setError('회사를 입력해 주세요.');
-      affiliationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      affiliationRef.current?.focus();
-      return false;
-    }
-
-    if (!years.trim()) {
-      setError('근속기간(년)을 입력해 주세요.');
-      yearsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      yearsRef.current?.focus();
-      return false;
-    }
-
-    if (!/^\d+$/.test(years)) {
-      setError('근속기간은 숫자만 입력할 수 있습니다.');
-      yearsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      yearsRef.current?.focus();
-      return false;
-    }
-
-    if (!employeeId.trim()) {
-      setError('사번을 입력해 주세요.');
-      employeeIdRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      employeeIdRef.current?.focus();
-      return false;
-    }
-
-    if (!position.trim()) {
-      setError('직급을 입력해 주세요.');
-      positionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      positionRef.current?.focus();
-      return false;
-    }
-
-    if (!department.trim()) {
-      setError('소속을 입력해 주세요.');
-      departmentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      departmentRef.current?.focus();
-      return false;
-    }
-
-    if (gender === '선택') {
-      setError('성별을 선택해 주세요.');
-      genderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      genderRef.current?.focus();
-      return false;
-    }
-
-    if (!dateOfBirth.trim()) {
-      setError('생년월일을 입력해 주세요.');
-      dateOfBirthRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      dateOfBirthRef.current?.focus();
-      return false;
-    }
-
-    if (!officePhone.trim()) {
-      setError('사무실 연락처를 입력해 주세요.');
-      officePhoneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      officePhoneRef.current?.focus();
-      return false;
-    }
-
-    if (!companyEmail.trim()) {
-      setError('회사 메일을 입력해 주세요.');
-      companyEmailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      companyEmailRef.current?.focus();
-      return false;
-    }
-
-    if (!railroadCertification.trim()) {
-      setError('철도 관련 자격증 보유 여부를 입력해 주세요.');
-      railroadCertificationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      railroadCertificationRef.current?.focus();
-      return false;
-    }
-
-    if (!jobEducation.trim()) {
-      setError('직무교육이수 여부를 입력해 주세요.');
-      jobEducationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      jobEducationRef.current?.focus();
-      return false;
-    }
-
-    if (!healthCheckDate.trim()) {
-      setError('건강검진 일시를 입력해 주세요.');
-      healthCheckDateRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      healthCheckDateRef.current?.focus();
-      return false;
-    }
-
-    if (!bodyTemperature.trim()) {
-      setError('건강검진시 체온을 입력해 주세요.');
-      bodyTemperatureRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      bodyTemperatureRef.current?.focus();
-      return false;
-    }
-
-    if (!systolicBP.trim()) {
-      setError('건강검진시 수축기 혈압을 입력해 주세요.');
-      systolicBPRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      systolicBPRef.current?.focus();
-      return false;
-    }
-
-    if (!diastolicBP.trim()) {
-      setError('건강검진시 이완기 혈압을 입력해 주세요.');
-      diastolicBPRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      diastolicBPRef.current?.focus();
-      return false;
-    }
-
-    if (!pulse.trim()) {
-      setError('건강검진시 맥박을 입력해 주세요.');
-      pulseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      pulseRef.current?.focus();
-      return false;
-    }
-
-    if (!workType.trim()) {
-      setError('근무유형을 입력해 주세요.');
-      workTypeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      workTypeRef.current?.focus();
-      return false;
-    }
-
-    if (!workTime.trim()) {
-      setError('출근/퇴근일시를 입력해 주세요.');
-      workTimeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      workTimeRef.current?.focus();
-      return false;
-    }
-
-    if (!employeeCardNumber.trim()) {
-      setError('사원증 출입증 일련번호를 입력해 주세요.');
-      employeeCardNumberRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      employeeCardNumberRef.current?.focus();
-      return false;
-    }
-
-    setError('');
-    return true;
-  };
-
-  const handleComplete = async () => {
-    if (!validateInputs()) return;
-    if (isSubmitting) return; // 중복 클릭 방지
-    if (currentRound > TOTAL_ROUNDS) {
-      window.alert('이미 모든 설문이 완료되었습니다.');
-      return;
-    }
-
-    const questionElements = document.querySelectorAll('[data-question-id]');
-    const answers: Record<string, string> = {};
-    
-    questionElements.forEach((elem) => {
-      const id = elem.getAttribute('data-question-id');
-      const checked = (elem as HTMLInputElement).querySelector('input[type="radio"]:checked') as HTMLInputElement;
-      if (checked) {
-        answers[id!] = checked.value;
-      }
-    });
-
-    if (Object.keys(answers).length < questions.length) {
-      setError('모든 문항에 답변해 주세요.');
-      return;
-    }
-
-    // 모든 검증 통과 후에만 저장 시작
-    setIsSubmitting(true);
-
+  }, []);
+  const load = useCallback(async () => {
     try {
-      const response = await fetch('/api/survey', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const data = await requestJSON<SessionReply>(
+        `/api/survey/session${fixedIds ? `?ids=${fixedIds}` : ""}`,
+      );
+      applySession(data.session);
+      if (data.session && !data.session.completed_at)
+        setNotice(
+          `${data.session.completed_rounds}회차까지 저장되어 있습니다. 이어서 작성해주세요.`,
+        );
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "진행 내용을 불러오지 못했습니다.",
+      );
+      setLoadFailed(true);
+    } finally {
+      setBooting(false);
+    }
+  }, [fixedIds, applySession]);
+  useEffect(() => {
+    let active = true;
+    requestJSON<SessionReply>(
+      `/api/survey/session${fixedIds ? `?ids=${fixedIds}` : ""}`,
+    )
+      .then((data) => {
+        if (!active) return;
+        applySession(data.session);
+        if (data.session && !data.session.completed_at)
+          setNotice(
+            `${data.session.completed_rounds}회차까지 저장되어 있습니다. 이어서 작성해주세요.`,
+          );
+      })
+      .catch((e) => {
+        if (active) {
+          setError(
+            e instanceof Error ? e.message : "진행 내용을 불러오지 못했습니다.",
+          );
+          setLoadFailed(true);
+        }
+      })
+      .finally(() => {
+        if (active) setBooting(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [fixedIds, applySession]);
+  function reload() {
+    setBooting(true);
+    setLoadFailed(false);
+    setError("");
+    void load();
+  }
+  function showIssue(e: unknown) {
+    setError(e instanceof Error ? e.message : "요청을 처리하지 못했습니다.");
+    const field =
+      e instanceof ValidationError || e instanceof ApiError
+        ? e.field
+        : undefined;
+    setErrorField(field || "");
+    if (field) {
+      const index = FIELD_GROUPS.findIndex((group) =>
+        group.fields.some((item) => item.key === field),
+      );
+      if (index >= 0) setProfileStep(index);
+      setTimeout(
+        () =>
+          document
+            .getElementById(field === "workTime" ? "work-start-period" : field)
+            ?.focus(),
+        0,
+      );
+    }
+  }
+  function updateProfile(key: string, value: string) {
+    setProfile((previous) => ({ ...previous, [key]: value }));
+    if (errorField === key) {
+      setError("");
+      setErrorField("");
+    }
+  }
+  async function nextProfile() {
+    if (saving.current) return;
+    setError("");
+    setErrorField("");
+    try {
+      validateQuestionIds(selectedIds);
+      validateParticipant(
+        profile,
+        FIELD_GROUPS[profileStep].fields.map((field) => field.key),
+      );
+      if (profileStep < FIELD_GROUPS.length - 1) {
+        setProfileStep(profileStep + 1);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+      const participant = validateParticipant(profile);
+      saving.current = true;
+      setBusy(true);
+      const data = await requestJSON<SessionReply>("/api/survey/session", {
+        method: "POST",
+        body: JSON.stringify({ participant, questionIds: selectedIds }),
+      });
+      applySession(data.session);
+      setNotice("각 회차의 두 문항에 응답한 후 저장해주세요.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (e) {
+      showIssue(e);
+    } finally {
+      saving.current = false;
+      setBusy(false);
+    }
+  }
+  function choose(questionId: number, code: string) {
+    const next = { ...answers, [questionId]: code };
+    setAnswers(next);
+    setError("");
+    if (session)
+      try {
+        sessionStorage.setItem(draftKey(session), JSON.stringify(next));
+      } catch {
+        /* Not required for server-side resume. */
+      }
+  }
+  function moveQuestion(index: number) {
+    setQuestionIndex(index);
+    setError("");
+    requestAnimationFrame(() => {
+      const element = document.getElementById("question-area");
+      element?.focus({ preventScroll: true });
+      element?.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+  }
+  async function saveRound() {
+    if (!session || saving.current) return;
+    const missing = session.pending_questions.findIndex((q) => !answers[q.id]);
+    if (missing >= 0) {
+      moveQuestion(missing);
+      setError("두 문항에 모두 응답해주세요.");
+      return;
+    }
+    saving.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await requestJSON<SessionReply>("/api/survey", {
+        method: "POST",
         body: JSON.stringify({
-          name,
-          affiliation,
-          job,
-          years,
-          employeeId,
-          position,
-          department,
-          gender,
-          dateOfBirth,
-          officePhone,
-          companyEmail,
-          railroadCertification,
-          jobEducation,
-          healthCheckDate,
-          bodyTemperature,
-          systolicBP,
-          diastolicBP,
-          pulse,
-          workType,
-          workTime,
-          employeeCardNumber,
-          round: currentRound,
-          selectedQuestions: questionIds,
-          questions: questions.map((q) => ({
-            id: q.id,
-            number: q.text.split('.')[0] + '.',
-            conditions: q.conditions,
-            answer: answers[q.id],
+          sessionId: session.id,
+          round: session.completed_rounds + 1,
+          answers: session.pending_questions.map((q) => ({
+            questionId: q.id,
+            answerCode: answers[q.id],
           })),
         }),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('API Error:', errorData);
-        console.error('Error details:', JSON.stringify(errorData, null, 2));
-        throw new Error(errorData.error || errorData.message || '저장 실패');
+      try {
+        sessionStorage.removeItem(draftKey(session));
+      } catch {
+        /* Optional local draft. */
       }
-
-      const result = await response.json();
-      console.log('Save success:', result);
-
-      if (currentRound < TOTAL_ROUNDS) {
-        // URL 없이 깔끔하게 alert 표시
-        window.alert(`${currentRound}/${TOTAL_ROUNDS}회 완료 및 저장되었습니다.`);
-        const allRadios = document.querySelectorAll('input[type="radio"]');
-        allRadios.forEach((radio) => {
-          (radio as HTMLInputElement).checked = false;
-        });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        setCurrentRound(currentRound + 1);
-      } else {
-        window.alert('모든 설문이 완료되었습니다. 감사합니다!');
-        setCompleted(true);
-      }
-    } catch (err) {
-      console.error('Survey save error:', err);
-      console.error('Error type:', typeof err);
-      console.error('Error details:', err);
-      setError('저장 중 오류가 발생했습니다.');
+      applySession(result.session);
+      setNotice(
+        `${result.savedRound}회차가 저장되었습니다. 다음 조건을 확인해주세요.`,
+      );
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (e) {
+      showIssue(e);
     } finally {
-      setIsSubmitting(false);
+      saving.current = false;
+      setBusy(false);
     }
-  };
-
-  const handleStartSurvey = () => {
-    if (!validateInputs()) return;
-    setIsInfoFormFilled(true);
-    setError('');
-  };
-
-  const psfNames = questionIds.map(id => {
-    const question = SURVEY_DATA.find(q => q.id === id);
-    return question ? `${id}번(${question.psf})` : `${id}번`;
-  }).join(', ');
+  }
+  async function startOver() {
+    if (saving.current) return;
+    saving.current = true;
+    setBusy(true);
+    try {
+      if (session && !session.completed_at)
+        await requestJSON("/api/survey/session", {
+          method: "DELETE",
+          body: JSON.stringify({ sessionId: session.id }),
+        });
+      if (session)
+        try {
+          sessionStorage.removeItem(draftKey(session));
+        } catch {
+          /* Optional local draft. */
+        }
+      resetDialog.current?.close();
+      setSession(null);
+      setAnswers({});
+      setSelectedIds(questionIds || []);
+      setProfileStep(0);
+      setError("");
+      setNotice("새 설문을 시작합니다. 기본정보를 확인해주세요.");
+    } catch (e) {
+      showIssue(e);
+      resetDialog.current?.close();
+    } finally {
+      saving.current = false;
+      setBusy(false);
+    }
+  }
+  const currentGroup = FIELD_GROUPS[profileStep];
+  const complete = Boolean(session?.completed_at);
+  const currentQuestion = session?.pending_questions[questionIndex];
+  const errors = error && (
+    <div className="alert error" role="alert">
+      <span>{error}</span>
+      {session && (
+        <button type="button" onClick={reload} disabled={busy}>
+          저장 상태 다시 확인
+        </button>
+      )}
+    </div>
+  );
+  const [today] = useState(() =>
+    new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10),
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto bg-white rounded-lg shadow p-8">
-        {/* 완료 화면 */}
-        {completed && (
-          <div className="text-center py-12">
-            <div className="mb-6">
-              <svg className="mx-auto h-24 w-24 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">설문이 완료되었습니다!</h2>
-            <p className="text-lg text-gray-600 mb-2">총 {TOTAL_ROUNDS}회의 설문에 응답해 주셔서 감사합니다.</p>
-            <p className="text-sm text-gray-500">이 페이지를 닫으셔도 됩니다.</p>
+    <PageShell>
+      <header className="page-heading">
+        <div>
+          <p className="eyebrow">RAILWAY HUMAN FACTORS</p>
+          <h1>
+            {complete
+              ? "설문이 모두 저장되었습니다."
+              : session
+                ? "제시된 조건을 읽고 판단해주세요."
+                : "철도 현장의 판단을 들려주세요."}
+          </h1>
+          <p>
+            {session
+              ? "현재 본인의 상태가 아닌, 화면에 제시된 작업조건을 기준으로 응답해주세요."
+              : "두 가지 PSF의 작업조건을 살펴보고, 각 상황에 대한 의견을 남겨주세요."}
+          </p>
+        </div>
+        <span className="version-tag">{groupName || "문항 선택형"} · 30회</span>
+      </header>
+      {booting ? (
+        <div className="empty-state" role="status">
+          <span className="spinner" />
+          저장된 진행 내용을 확인하고 있습니다.
+        </div>
+      ) : loadFailed ? (
+        <div className="panel empty-state">
+          {errors}
+          <button className="button primary" onClick={reload}>
+            다시 불러오기
+          </button>
+        </div>
+      ) : complete ? (
+        <section className="panel completion">
+          <div className="completion-mark" aria-hidden="true">
+            ✓
           </div>
-        )}
-
-        {/* 설문 진행 화면 */}
-        {!completed && (
-          <>
-            {/* 헤더 */}
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">설문지</h1>
-              <p className="text-gray-600">
-                총 {TOTAL_ROUNDS}번의 설문을 완료해 주세요. 이 그룹은 {psfNames} PSF에 대한 설문입니다.
-              </p>
+          <p className="eyebrow">SURVEY COMPLETE</p>
+          <h2>참여해주셔서 감사합니다.</h2>
+          <p>30회차 · 총 60개 응답이 서버에 저장되었습니다.</p>
+          <p className="muted">
+            별도의 메일 전송이나 파일 제출은 필요하지 않습니다.
+          </p>
+          <div className="completion-tags">
+            {session?.question_ids.map((id) => (
+              <span className="tag" key={id}>
+                PSF {id} · {SURVEY_DATA.find((q) => q.id === id)?.psf}
+              </span>
+            ))}
+          </div>
+          <button
+            className="button secondary"
+            onClick={() => resetDialog.current?.showModal()}
+          >
+            새 설문 시작
+          </button>
+        </section>
+      ) : (
+        <div className="survey-layout">
+          <aside className="survey-sidebar">
+            <div className="panel sidebar-panel">
+              <p className="eyebrow">{session ? "응답 진행" : "참여 준비"}</p>
+              <div className="progress-number">
+                <strong>{session?.completed_rounds || 0}</strong>
+                <span>/ {TOTAL_ROUNDS}회 저장</span>
+              </div>
+              <progress
+                value={session?.completed_rounds || 0}
+                max={TOTAL_ROUNDS}
+                aria-label="저장된 회차"
+              />
+              <p className="small muted">한 회차에 두 PSF를 평가합니다.</p>
+              {session ? (
+                <>
+                  <nav className="question-nav" aria-label="이번 회차 문항">
+                    {session.pending_questions.map((q, i) => (
+                      <button
+                        key={q.id}
+                        className={questionIndex === i ? "current" : ""}
+                        aria-current={questionIndex === i ? "step" : undefined}
+                        onClick={() => moveQuestion(i)}
+                        disabled={busy}
+                      >
+                        <span>
+                          {i + 1}. {q.psf}
+                        </span>
+                        <small>{answers[q.id] ? "선택 완료" : "미응답"}</small>
+                      </button>
+                    ))}
+                  </nav>
+                  <div className="sidebar-note">
+                    <strong>{session.participant.name}</strong>
+                    <p>
+                      {session.participant.affiliation} ·{" "}
+                      {session.participant.job}
+                    </p>
+                  </div>
+                  <p className="small muted">
+                    이 브라우저에서 다시 접속하면 저장된 회차에 이어서 작성할 수
+                    있습니다.
+                  </p>
+                  <button
+                    className="text-button"
+                    disabled={busy}
+                    onClick={() => resetDialog.current?.showModal()}
+                  >
+                    다른 설문 시작
+                  </button>
+                </>
+              ) : (
+                <>
+                  <ol className="profile-steps">
+                    {FIELD_GROUPS.map((group, i) => (
+                      <li
+                        key={group.title}
+                        className={
+                          i === profileStep
+                            ? "current"
+                            : i < profileStep
+                              ? "done"
+                              : ""
+                        }
+                      >
+                        <span>{i + 1}</span>
+                        {group.title}
+                      </li>
+                    ))}
+                  </ol>
+                  <div className="sidebar-note">
+                    <strong>응답 안내</strong>
+                    <p>
+                      정답이 정해져 있지 않습니다. 조건을 종합한 본인의 판단을
+                      선택해주세요.
+                    </p>
+                  </div>
+                  <p className="small muted">
+                    설문을 시작한 뒤에는 완료 회차와 현재 시나리오가 서버에
+                    보관됩니다.
+                  </p>
+                </>
+              )}
             </div>
-
-        {/* 정보 입력 섹션 */}
-        {!isInfoFormFilled && (
-          <>
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-red-700">{error}</p>
+          </aside>
+          <div className="survey-main" aria-busy={busy}>
+            {notice && (
+              <div className="alert info" role="status">
+                {notice}
               </div>
             )}
-
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  성명을 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={nameRef}
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="홍길동"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  회사를 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={affiliationRef}
-                  type="text"
-                  value={affiliation}
-                  onChange={(e) => setAffiliation(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="회사명"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  근속기간(년)을 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={yearsRef}
-                  type="text"
-                  value={years}
-                  onChange={(e) => setYears(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="10"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  종사자 구분 <span className="text-red-500">*</span>
-                </label>
-                <select
-                  ref={jobRef}
-                  value={job}
-                  onChange={(e) => setJob(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            {errors}
+            {!session ? (
+              <>
+                {profileStep === 0 && (
+                  <section className="panel psf-picker">
+                    <div className="section-heading">
+                      <h2>
+                        {fixedIds
+                          ? "배정된 PSF"
+                          : "평가할 PSF 두 가지를 선택해주세요."}
+                      </h2>
+                      <span className="tag">{selectedIds.length} / 2</span>
+                    </div>
+                    <p className="small muted">
+                      선택한 두 PSF를 유지하고, 매 회차 작업조건을 바꿔
+                      제시합니다.
+                    </p>
+                    <div className="psf-options">
+                      {SURVEY_DATA.filter(
+                        (q) => !fixedIds || selectedIds.includes(q.id),
+                      ).map((q) => (
+                        <button
+                          type="button"
+                          key={q.id}
+                          disabled={
+                            Boolean(fixedIds) ||
+                            busy ||
+                            (!selectedIds.includes(q.id) &&
+                              selectedIds.length === 2)
+                          }
+                          aria-pressed={selectedIds.includes(q.id)}
+                          className={
+                            selectedIds.includes(q.id) ? "selected" : ""
+                          }
+                          onClick={() =>
+                            setSelectedIds((previous) =>
+                              previous.includes(q.id)
+                                ? previous.filter((id) => id !== q.id)
+                                : [...previous, q.id].sort((a, b) => a - b),
+                            )
+                          }
+                        >
+                          <span>PSF {q.id}</span>
+                          <strong>{q.psf}</strong>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                )}
+                <form
+                  className="panel profile-panel"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void nextProfile();
+                  }}
+                  noValidate
                 >
-                  <option value="기관사">기관사</option>
-                  <option value="관제사">관제사</option>
-                  <option value="승무원">승무원</option>
-                  <option value="작업자">작업자</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  사번을 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={employeeIdRef}
-                  type="text"
-                  value={employeeId}
-                  onChange={(e) => setEmployeeId(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="사번 입력"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  직급을 적어주세요. ex) 운전3급, 토목4급 등 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={positionRef}
-                  type="text"
-                  value={position}
-                  onChange={(e) => setPosition(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="운전3급, 토목4급 등"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  소속을 적어주세요. ex) OO본부 OO처 등 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={departmentRef}
-                  type="text"
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="OO본부 OO처 등"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  성별 <span className="text-red-500">*</span>
-                </label>
-                <select
-                  ref={genderRef}
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="선택">선택</option>
-                  <option value="남성">남성</option>
-                  <option value="여성">여성</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  생년월일 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={dateOfBirthRef}
-                  type="date"
-                  value={dateOfBirth}
-                  onChange={(e) => setDateOfBirth(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  사무실 연락처를 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={officePhoneRef}
-                  type="tel"
-                  value={officePhone}
-                  onChange={(e) => setOfficePhone(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="02-1234-5678"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  회사 메일을 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={companyEmailRef}
-                  type="email"
-                  value={companyEmail}
-                  onChange={(e) => setCompanyEmail(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="email@company.com"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  철도 관련 자격증 보유 여부를 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={railroadCertificationRef}
-                  type="text"
-                  value={railroadCertification}
-                  onChange={(e) => setRailroadCertification(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="유 또는 무"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  직무교육이수 여부(2학점 인정)를 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={jobEducationRef}
-                  type="text"
-                  value={jobEducation}
-                  onChange={(e) => setJobEducation(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="2학점 인정"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  당신의 건강검진 일시를 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={healthCheckDateRef}
-                  type="datetime-local"
-                  value={healthCheckDate}
-                  onChange={(e) => setHealthCheckDate(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  당신의 건강검진시 체온을 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={bodyTemperatureRef}
-                  type="text"
-                  value={bodyTemperature}
-                  onChange={(e) => setBodyTemperature(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="36.5"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  당신의 건강검진시 수축기 혈압을 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={systolicBPRef}
-                  type="text"
-                  value={systolicBP}
-                  onChange={(e) => setSystolicBP(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="120"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  당신의 건강검진시 이완기 혈압을 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={diastolicBPRef}
-                  type="text"
-                  value={diastolicBP}
-                  onChange={(e) => setDiastolicBP(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="80"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  당신의 건강검진시 맥박을 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={pulseRef}
-                  type="text"
-                  value={pulse}
-                  onChange={(e) => setPulse(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="70"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  당신의 근무유형을 적어주세요. ex) 야간격일 O조, 4조 2교대 O조, 통상일근, 시차O형 등 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={workTypeRef}
-                  type="text"
-                  value={workType}
-                  onChange={(e) => setWorkType(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="야간격일 O조, 4조 2교대 O조, 통상일근, 시차O형 등"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  당신의 출근/퇴근일시를 적어주세요. ex) 09:00/18:00 등 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={workTimeRef}
-                  type="text"
-                  value={workTime}
-                  onChange={(e) => setWorkTime(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="09:00/18:00 등"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  당신의 사원증 출입증 일련번호를 적어주세요. <span className="text-red-500">*</span>
-                </label>
-                <input
-                  ref={employeeCardNumberRef}
-                  type="text"
-                  value={employeeCardNumber}
-                  onChange={(e) => setEmployeeCardNumber(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="일련번호"
-                />
-              </div>
-
-              <button
-                onClick={handleStartSurvey}
-                className="w-full mt-6 px-6 py-3 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700"
-              >
-                설문 시작
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* 설문 진행 중 */}
-        {isInfoFormFilled && (
-          <>
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-red-700">{error}</p>
-              </div>
+                  <div className="section-heading">
+                    <div>
+                      <p className="eyebrow">STEP 0{profileStep + 1} / 03</p>
+                      <h2>{currentGroup.title}</h2>
+                      <p className="muted small">
+                        {currentGroup.description} 모든 항목은 필수입니다.
+                      </p>
+                    </div>
+                  </div>
+                  <fieldset disabled={busy} className="profile-fields">
+                    <legend className="sr-only">{currentGroup.title}</legend>
+                    {currentGroup.fields.map((field) => (
+                      <div
+                        className={`field ${field.type === "workTime" ? "wide" : ""}`}
+                        key={field.key}
+                      >
+                        {field.type === "workTime" ? (
+                          <>
+                            <p className="field-label">{field.label}</p>
+                            <div className="work-clocks">
+                              <ClockField
+                                id="work-start"
+                                label="출근"
+                                value={profile.workTime?.split("/")[0] || ""}
+                                onChange={(value) =>
+                                  updateProfile(
+                                    "workTime",
+                                    `${value}/${profile.workTime?.split("/")[1] || ""}`,
+                                  )
+                                }
+                              />
+                              <ClockField
+                                id="work-end"
+                                label="퇴근"
+                                value={profile.workTime?.split("/")[1] || ""}
+                                onChange={(value) =>
+                                  updateProfile(
+                                    "workTime",
+                                    `${profile.workTime?.split("/")[0] || ""}/${value}`,
+                                  )
+                                }
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <label htmlFor={field.key}>{field.label}</label>
+                            {field.type === "job" || field.type === "gender" ? (
+                              <select
+                                id={field.key}
+                                value={profile[field.key]}
+                                onChange={(e) =>
+                                  updateProfile(field.key, e.target.value)
+                                }
+                                aria-invalid={errorField === field.key}
+                                aria-describedby={
+                                  errorField === field.key
+                                    ? "profile-field-error"
+                                    : undefined
+                                }
+                              >
+                                <option value="">선택해주세요</option>
+                                {(field.type === "job"
+                                  ? JOBS
+                                  : ["남성", "여성", "응답하지 않음"]
+                                ).map((value) => (
+                                  <option key={value}>{value}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input
+                                id={field.key}
+                                type={field.type}
+                                value={profile[field.key]}
+                                onChange={(e) =>
+                                  updateProfile(field.key, e.target.value)
+                                }
+                                placeholder={field.placeholder}
+                                maxLength={200}
+                                max={
+                                  field.type === "date"
+                                    ? today
+                                    : field.key === "years"
+                                      ? 80
+                                      : undefined
+                                }
+                                min={
+                                  field.type === "number"
+                                    ? 0
+                                    : field.type === "date"
+                                      ? "1900-01-01"
+                                      : undefined
+                                }
+                                step={field.key === "years" ? 1 : "any"}
+                                autoComplete="off"
+                                aria-invalid={errorField === field.key}
+                                aria-describedby={
+                                  errorField === field.key
+                                    ? "profile-field-error"
+                                    : undefined
+                                }
+                              />
+                            )}
+                          </>
+                        )}
+                        {errorField === field.key && (
+                          <p id="profile-field-error" className="field-error">
+                            {error}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </fieldset>
+                  <div className="form-actions">
+                    <button
+                      className="button secondary"
+                      type="button"
+                      disabled={profileStep === 0 || busy}
+                      onClick={() => {
+                        setProfileStep(profileStep - 1);
+                        setError("");
+                      }}
+                    >
+                      이전
+                    </button>
+                    <button
+                      className="button primary"
+                      type="submit"
+                      disabled={busy}
+                    >
+                      {busy
+                        ? "준비 중…"
+                        : profileStep === 2
+                          ? "설문 시작하기 →"
+                          : "다음 단계 →"}
+                    </button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              <>
+                <div className="round-heading">
+                  <div>
+                    <p className="eyebrow">
+                      ROUND{" "}
+                      {String(session.completed_rounds + 1).padStart(2, "0")} /
+                      30
+                    </p>
+                    <h2>이번 회차의 {questionIndex + 1}번째 문항</h2>
+                  </div>
+                  <span className="tag">
+                    {Object.keys(answers).length} / 2 선택
+                  </span>
+                </div>
+                {session.survey_version !== SURVEY_VERSION && (
+                  <div className="alert error" role="alert">
+                    이전 버전의 설문입니다. 기존 응답은 보관되어 있습니다.
+                    관리자에게 문의하거나 새 설문을 시작해주세요.
+                  </div>
+                )}
+                <div id="question-area" tabIndex={-1}>
+                  {currentQuestion && (
+                    <MultipleChoiceQuestion
+                      question={currentQuestion}
+                      value={answers[currentQuestion.id] || ""}
+                      onChange={(code) => choose(currentQuestion.id, code)}
+                      disabled={busy}
+                    />
+                  )}
+                </div>
+                <div className="survey-actions">
+                  <div>
+                    <strong>
+                      {busy
+                        ? "응답을 저장하고 있습니다…"
+                        : `${session.completed_rounds}회차 저장 완료`}
+                    </strong>
+                    <span>두 문항을 확인한 후 이번 회차를 저장해주세요.</span>
+                  </div>
+                  <div className="action-buttons">
+                    <button
+                      className="button secondary"
+                      disabled={busy || questionIndex === 0}
+                      onClick={() => moveQuestion(questionIndex - 1)}
+                    >
+                      이전 문항
+                    </button>
+                    {questionIndex === 0 ? (
+                      <button
+                        className="button primary"
+                        disabled={busy || !answers[currentQuestion?.id || 0]}
+                        onClick={() => moveQuestion(1)}
+                      >
+                        다음 문항 →
+                      </button>
+                    ) : (
+                      <button
+                        className="button primary"
+                        disabled={
+                          busy || session.survey_version !== SURVEY_VERSION
+                        }
+                        onClick={() => void saveRound()}
+                      >
+                        {busy
+                          ? "저장 중…"
+                          : session.completed_rounds === 29
+                            ? "마지막 회차 저장"
+                            : "이번 회차 저장 →"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </>
             )}
-
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-blue-700">
-                현재: {currentRound}/{TOTAL_ROUNDS}회 - PSF: {psfNames}
-              </p>
-            </div>
-
-            <div className="space-y-12 mb-8">
-              {questions.map((question) => (
-                <MultipleChoiceQuestion
-                  key={question.id}
-                  question={question}
-                />
-              ))}
-            </div>
-
-            <div className="flex gap-4 justify-end pt-8 border-t">
-              <button
-                onClick={handleComplete}
-                disabled={completed || isSubmitting}
-                className={`px-6 py-2 rounded-md font-medium ${
-                  completed || isSubmitting
-                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-              >
-                {isSubmitting ? '저장 중...' : '완료'}
-              </button>
-            </div>
-
-            <div className="mt-8 text-center">
-              <p className="text-sm text-gray-600">
-                진행률: {completed ? TOTAL_ROUNDS : currentRound - 1}/{TOTAL_ROUNDS}회 완료
-              </p>
-            </div>
-          </>
-        )}
-        </>
-        )}
-      </div>
-    </div>
+          </div>
+        </div>
+      )}
+      <dialog
+        ref={resetDialog}
+        className="app-dialog"
+        aria-labelledby="reset-title"
+      >
+        <h2 id="reset-title">새 설문을 시작할까요?</h2>
+        <p>
+          저장된 응답은 보관됩니다.
+          {!complete &&
+            " 현재 설문은 중단 처리되며 다시 이어서 작성할 수 없습니다."}{" "}
+          기본정보는 확인 후 재사용할 수 있습니다.
+        </p>
+        <div className="form-actions">
+          <button
+            className="button secondary"
+            disabled={busy}
+            onClick={() => resetDialog.current?.close()}
+          >
+            계속 작성
+          </button>
+          <button
+            className="button primary"
+            disabled={busy}
+            onClick={() => void startOver()}
+          >
+            새 설문 시작
+          </button>
+        </div>
+      </dialog>
+    </PageShell>
   );
 }

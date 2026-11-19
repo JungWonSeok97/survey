@@ -1,124 +1,67 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+import { NextRequest } from "next/server";
+import { randomInt } from "node:crypto";
+import { body, db, failure, HttpError, json, limit, owner } from "@/lib/server";
+import {
+  generateScenarios,
+  onlyKeys,
+  SURVEY_VERSION,
+  validateAnswers,
+  validateRound,
+  validateUUID,
+} from "@/lib/survey-schema";
 
 export async function POST(request: NextRequest) {
   try {
-    // 환경변수 확인
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    console.log('Environment check:');
-    console.log('supabaseUrl exists:', !!supabaseUrl);
-    console.log('supabaseServiceRoleKey exists:', !!supabaseServiceRoleKey);
-
-    if (!supabaseUrl || !supabaseServiceRoleKey) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          message: '환경변수가 설정되지 않았습니다.',
-          missingUrl: !supabaseUrl,
-          missingKey: !supabaseServiceRoleKey
-        },
-        { status: 500 }
+    const input = await body(request);
+    onlyKeys(input, ["sessionId", "round", "answers"]);
+    const id = validateUUID(input.sessionId),
+      round = validateRound(input.round),
+      access = owner(request);
+    if (!access)
+      throw new HttpError(
+        401,
+        "설문 연결이 만료되었습니다. 같은 브라우저에서 다시 접속해주세요.",
       );
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
-    const data = await request.json();
-
-    // Supabase 데이터베이스에 저장
-    const surveyData = {
-      name: data.name,
-      affiliation: data.affiliation,
-      job: data.job,
-      years: parseInt(data.years) || 0,
-      employee_id: data.employeeId,
-      position: data.position,
-      department: data.department,
-      gender: data.gender,
-      date_of_birth: data.dateOfBirth,
-      office_phone: data.officePhone,
-      company_email: data.companyEmail,
-      railroad_certification: data.railroadCertification,
-      job_education: data.jobEducation,
-      health_check_date: data.healthCheckDate,
-      body_temperature: data.bodyTemperature,
-      systolic_bp: data.systolicBP,
-      diastolic_bp: data.diastolicBP,
-      pulse: data.pulse,
-      work_type: data.workType,
-      work_time: data.workTime,
-      employee_card_number: data.employeeCardNumber,
-      round: data.round,
-      questions: data.questions,
-      saved_at: new Date().toISOString(),
-    };
-
-    console.log('Survey data to save:', surveyData);
-
-    const { error, data: insertedData } = await supabase
-      .from('survey_responses')
-      .insert([surveyData])
-      .select();
-
-    if (error) {
-      console.error('Supabase insert error:', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
-      console.error('Error details:', JSON.stringify(error, null, 2));
-      return NextResponse.json(
-        { 
-          success: false, 
-          message: `데이터베이스 저장 중 오류가 발생했습니다. ${error.message}`,
-          error: error.message,
-          code: error.code,
-          hint: error.hint || null,
-          details: error.details || null
-        },
-        { status: 500 }
+    await limit(request, "save-round", 120, 60, access.hash);
+    const client = db();
+    const { data: session, error: lookupError } = await client
+      .from("survey_sessions")
+      .select("*")
+      .eq("id", id)
+      .eq("owner_hash", access.hash)
+      .is("abandoned_at", null)
+      .maybeSingle();
+    if (lookupError) throw lookupError;
+    if (!session)
+      throw new HttpError(404, "진행 중인 설문을 찾을 수 없습니다.");
+    if (session.survey_version !== SURVEY_VERSION)
+      throw new HttpError(
+        409,
+        "설문 버전이 변경되었습니다. 관리자에게 문의해주세요. 기존 응답은 보관되어 있습니다.",
       );
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: '저장되었습니다.',
-      id: insertedData?.[0]?.id,
+    const answers = validateAnswers(input.answers, session.question_ids);
+    const { data, error } = await client.rpc("save_survey_round", {
+      p_session_id: id,
+      p_owner_hash: access.hash,
+      p_round: round,
+      p_answers: answers,
+      p_next_questions: generateScenarios(
+        session.question_ids,
+        () => randomInt(0, 0x1000000) / 0x1000000,
+      ),
     });
-  } catch (error) {
-    console.error('Survey save error:', error);
-    console.error('Error type:', typeof error);
-    console.error('Error constructor:', error instanceof Error ? error.constructor.name : 'Unknown');
-    console.error('Error stack:', error instanceof Error ? error.stack : 'Unknown error');
-    
-    let errorMessage = '저장 중 오류가 발생했습니다.';
-    let errorDetails = null;
-    
-    if (error instanceof Error) {
-      errorMessage = error.message;
-      errorDetails = {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      };
-    } else if (typeof error === 'object' && error !== null) {
-      errorDetails = error;
-      errorMessage = JSON.stringify(error);
+    if (error) {
+      if (/ANSWER_CONFLICT|ROUND_CONFLICT/.test(error.message))
+        throw new HttpError(
+          409,
+          "이미 저장된 응답이나 진행 회차가 다릅니다. 저장 상태를 다시 불러와주세요.",
+        );
+      if (/SESSION_NOT_FOUND/.test(error.message))
+        throw new HttpError(404, "진행 중인 설문을 찾을 수 없습니다.");
+      throw error;
     }
-    
-    return NextResponse.json(
-      { 
-        success: false, 
-        message: `저장 중 오류가 발생했습니다. ${errorMessage}`,
-        error: errorMessage,
-        errorType: error instanceof Error ? error.constructor.name : typeof error,
-        details: errorDetails
-      },
-      { status: 500 }
-    );
+    return json({ success: true, ...data });
+  } catch (error) {
+    return failure(error);
   }
 }

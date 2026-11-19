@@ -1,64 +1,80 @@
-'use client';
-
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-
+"use client";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import PageShell from "@/components/PageShell";
+import { requestJSON } from "@/lib/client-api";
 export default function AdminLoginPage() {
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const router = useRouter();
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // 임시 비밀번호 (나중에 환경변수로 변경 예정)
-    if (password === 'admin1234') {
-      // 로그인 성공
-      sessionStorage.setItem('adminLoggedIn', 'true');
-      router.push('/admin/dashboard');
-    } else {
-      setError('비밀번호가 올바르지 않습니다.');
-      setPassword('');
+  const [email, setEmail] = useState(""),
+    [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  const pending = useRef(false);
+  async function login(event: React.FormEvent) {
+    event.preventDefault();
+    if (pending.current) return;
+    pending.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      await requestJSON("/api/admin/login", {
+        method: "POST",
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      setPassword("");
+      router.replace("/admin/dashboard");
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "로그인하지 못했습니다.");
+    } finally {
+      pending.current = false;
+      setBusy(false);
     }
-  };
-
+  }
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">관리자 로그인</h1>
-          <p className="text-gray-600">설문 결과를 확인하려면 로그인하세요</p>
-        </div>
-
-        <form onSubmit={handleLogin}>
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              비밀번호
-            </label>
+    <PageShell admin>
+      <section className="panel login-panel">
+        <p className="eyebrow">RESEARCH ADMIN</p>
+        <h1>응답 관리 로그인</h1>
+        <p className="muted">등록된 관리자 계정으로 로그인해주세요.</p>
+        <form onSubmit={login}>
+          <div className="field">
+            <label htmlFor="email">이메일</label>
             <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="비밀번호를 입력하세요"
-              autoFocus
+              id="email"
+              type="email"
+              autoComplete="username"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={busy}
             />
           </div>
-
+          <div className="field">
+            <label htmlFor="password">비밀번호</label>
+            <input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={busy}
+            />
+          </div>
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-red-700 text-sm">{error}</p>
+            <div className="alert error" role="alert">
+              {error}
             </div>
           )}
-
-          <button
-            type="submit"
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 font-medium"
-          >
-            로그인
+          <button className="button primary" disabled={busy} type="submit">
+            {busy ? "확인 중…" : "로그인"}
           </button>
         </form>
-      </div>
-    </div>
+        <p className="small muted">
+          계정 등록과 권한 부여는 연구 관리자에게 문의해주세요.
+        </p>
+      </section>
+    </PageShell>
   );
 }

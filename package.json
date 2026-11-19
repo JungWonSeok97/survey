@@ -1,31 +1,37 @@
 {
-  "name": "my-app",
-  "version": "0.1.0",
+  "name": "railway-psf-survey",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --conditions=react-server --import tsx --test --test-concurrency=1 tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "node e2e/run.mjs",
+    "pretest:e2e": "npm run build"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.76.1",
-    "next": "16.0.10",
+    "next": "16.4.6",
     "pg": "^8.16.3",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "recharts": "^3.5.1",
-    "xlsx": "^0.18.5"
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
+    "@playwright/test": "^1.65.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv-cli": "^10.0.0",
     "eslint": "^9",
-    "eslint-config-next": "16.0.0",
+    "eslint-config-next": "16.4.6",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

@@ -57,6 +57,7 @@ test("admin API rejects wrong/disabled credentials, expired sessions and CSRF; l
     const reply = (body:unknown,status=200) => new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json"}});
     if (!available) return reply({message:"internal secret"},500);
     if (url.pathname.endsWith("consume_survey_limit")) return reply(true);
+    if (url.pathname.endsWith("verify_survey_admin_session")) return reply(sessions.has(payload.p_token_hash) && !expired && active ? {id:"admin",username:"admin",is_active:true} : null);
     if (url.pathname.endsWith("survey_admins")) {
       const row = {id:"admin",username:"admin",password_hash:passwordHash,is_active:active};
       if (new Headers(init?.headers).get("accept")?.includes("vnd.pgrst.object")) return reply(row);

@@ -253,8 +253,11 @@ export function validateQuestionIds(value: unknown): number[] {
     value.some((id) => !Number.isInteger(id) || id < 1 || id > 8) ||
     value[0] === value[1]
   )
-    throw new ValidationError("서로 다른 두 PSF를 선택해주세요.");
-  return [...value].sort((a, b) => a - b);
+    throw new ValidationError("배정된 그룹의 PSF 두 개가 필요합니다.");
+  const ids = [...value].sort((a, b) => a - b);
+  if (ids[0] % 2 !== 1 || ids[1] !== ids[0] + 1)
+    throw new ValidationError("배정된 그룹의 PSF 조합만 사용할 수 있습니다.");
+  return ids;
 }
 export function validateRound(value: unknown): number {
   if (

@@ -311,18 +311,18 @@ progress::-moz-progress-bar {
   color: var(--brand);
   border-radius: 6px;
 }
-.psf-picker,
+.assigned-psfs,
 .profile-panel {
   padding: 28px;
   margin-bottom: 22px;
 }
 .psf-options {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-top: 18px;
 }
-.psf-options button {
+.psf-options .assigned-psf {
   text-align: left;
   border: 1px solid var(--line);
   border-radius: 9px;
@@ -339,13 +339,10 @@ progress::-moz-progress-bar {
 .psf-options strong {
   font-size: 14px;
 }
-.psf-options .selected {
+.psf-options .assigned-psf {
   border-color: var(--brand);
   background: var(--tint);
   box-shadow: inset 0 0 0 1px var(--brand);
-}
-.psf-options .selected:disabled {
-  opacity: 1;
 }
 .profile-fields {
   margin: 25px 0 0;
@@ -1021,7 +1018,7 @@ summary .muted {
     display: block;
     margin-top: 12px;
   }
-  .psf-picker,
+  .assigned-psfs,
   .profile-panel {
     padding: 22px 20px;
   }

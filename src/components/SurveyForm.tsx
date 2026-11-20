@@ -34,13 +34,12 @@ export default function SurveyForm({
   questionIds,
   groupName,
 }: {
-  questionIds?: [number, number];
-  groupName?: string;
+  questionIds: [number, number];
+  groupName: string;
 }) {
-  const fixedIds = questionIds?.join(",") || "";
+  const fixedIds = questionIds.join(",");
   const [session, setSession] = useState<SurveySession | null>(null);
   const [profile, setProfile] = useState<Participant>(emptyProfile);
-  const [selectedIds, setSelectedIds] = useState<number[]>(questionIds || []);
   const [profileStep, setProfileStep] = useState(0);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -60,7 +59,6 @@ export default function SurveyForm({
     setErrorField("");
     if (next) {
       setProfile(next.participant);
-      setSelectedIds(next.question_ids);
       try {
         const draft = JSON.parse(
           sessionStorage.getItem(draftKey(next)) || "{}",
@@ -78,7 +76,7 @@ export default function SurveyForm({
   const load = useCallback(async () => {
     try {
       const data = await requestJSON<SessionReply>(
-        `/api/survey/session${fixedIds ? `?ids=${fixedIds}` : ""}`,
+        `/api/survey/session?ids=${fixedIds}`,
       );
       applySession(data.session);
       if (data.session && !data.session.completed_at)
@@ -97,7 +95,7 @@ export default function SurveyForm({
   useEffect(() => {
     let active = true;
     requestJSON<SessionReply>(
-      `/api/survey/session${fixedIds ? `?ids=${fixedIds}` : ""}`,
+      `/api/survey/session?ids=${fixedIds}`,
     )
       .then((data) => {
         if (!active) return;
@@ -161,7 +159,7 @@ export default function SurveyForm({
     setError("");
     setErrorField("");
     try {
-      validateQuestionIds(selectedIds);
+      validateQuestionIds(questionIds);
       validateParticipant(
         profile,
         FIELD_GROUPS[profileStep].fields.map((field) => field.key),
@@ -176,7 +174,7 @@ export default function SurveyForm({
       setBusy(true);
       const data = await requestJSON<SessionReply>("/api/survey/session", {
         method: "POST",
-        body: JSON.stringify({ participant, questionIds: selectedIds }),
+        body: JSON.stringify({ participant, questionIds }),
       });
       applySession(data.session);
       setNotice("각 회차의 두 문항에 응답한 후 저장해주세요.");
@@ -267,7 +265,6 @@ export default function SurveyForm({
       resetDialog.current?.close();
       setSession(null);
       setAnswers({});
-      setSelectedIds(questionIds || []);
       setProfileStep(0);
       setError("");
       setNotice("새 설문을 시작합니다. 기본정보를 확인해주세요.");
@@ -297,7 +294,7 @@ export default function SurveyForm({
   );
 
   return (
-    <PageShell>
+    <PageShell brandHref={`/survey/group${(questionIds[0] + 1) / 2}`}>
       <header className="page-heading">
         <div>
           <p className="eyebrow">RAILWAY HUMAN FACTORS</p>
@@ -449,47 +446,12 @@ export default function SurveyForm({
             {!session ? (
               <>
                 {profileStep === 0 && (
-                  <section className="panel psf-picker">
-                    <div className="section-heading">
-                      <h2>
-                        {fixedIds
-                          ? "배정된 PSF"
-                          : "평가할 PSF 두 가지를 선택해주세요."}
-                      </h2>
-                      <span className="tag">{selectedIds.length} / 2</span>
-                    </div>
-                    <p className="small muted">
-                      선택한 두 PSF를 유지하고, 매 회차 작업조건을 바꿔
-                      제시합니다.
-                    </p>
+                  <section className="panel assigned-psfs">
+                    <div className="section-heading"><h2>배정된 PSF</h2><span className="tag">{groupName}</span></div>
+                    <p className="small muted">배정된 두 PSF에 대해 매 회차 다른 작업조건을 제시합니다.</p>
                     <div className="psf-options">
-                      {SURVEY_DATA.filter(
-                        (q) => !fixedIds || selectedIds.includes(q.id),
-                      ).map((q) => (
-                        <button
-                          type="button"
-                          key={q.id}
-                          disabled={
-                            Boolean(fixedIds) ||
-                            busy ||
-                            (!selectedIds.includes(q.id) &&
-                              selectedIds.length === 2)
-                          }
-                          aria-pressed={selectedIds.includes(q.id)}
-                          className={
-                            selectedIds.includes(q.id) ? "selected" : ""
-                          }
-                          onClick={() =>
-                            setSelectedIds((previous) =>
-                              previous.includes(q.id)
-                                ? previous.filter((id) => id !== q.id)
-                                : [...previous, q.id].sort((a, b) => a - b),
-                            )
-                          }
-                        >
-                          <span>PSF {q.id}</span>
-                          <strong>{q.psf}</strong>
-                        </button>
+                      {SURVEY_DATA.filter(q => questionIds.includes(q.id)).map(q => (
+                        <div className="assigned-psf" key={q.id}><span>PSF {q.id}</span><strong>{q.psf}</strong></div>
                       ))}
                     </div>
                   </section>

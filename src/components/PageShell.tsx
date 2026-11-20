@@ -2,9 +2,11 @@ import Link from "next/link";
 export default function PageShell({
   children,
   admin = false,
+  brandHref,
 }: {
   children: React.ReactNode;
   admin?: boolean;
+  brandHref?: string;
 }) {
   return (
     <>
@@ -13,7 +15,7 @@ export default function PageShell({
       </a>
       <header className="app-header">
         <div className="header-inner">
-          <Link className="brand" href="/survey">
+          <Link className="brand" href={brandHref || (admin ? "/admin/dashboard" : "/")}>
             <span className="brand-symbol" aria-hidden="true">
               R
             </span>

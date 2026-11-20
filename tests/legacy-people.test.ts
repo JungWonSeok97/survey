@@ -31,6 +31,29 @@ test("legacy people views preserve every response, separate conflicting identiti
       has_table_privilege('authenticated','survey_legacy_records','SELECT') b,
       has_table_privilege('service_role','survey_legacy_people','SELECT') c`)).rows[0];
     assert.deepEqual(access,{a:false,b:false,c:true});
+    await db.exec(readFileSync("supabase/migrations/202611190002_survey_admins.sql", "utf8"));
+    await db.exec(readFileSync("supabase/migrations/202611200002_admin_performance.sql", "utf8"));
+    const cached = async () => (await db.query<{n:number}>("select sum(record_count)::int n from survey_legacy_people_cache")).rows[0].n;
+    assert.equal(await cached(),7);
+    assert.equal((await db.query<{n:number}>("select count(*)::int n from (select * from survey_legacy_people except select * from survey_legacy_people_cache) d")).rows[0].n,0);
+    await db.exec("update survey_responses set years='11' where employee_id=' E1 '");
+    assert.equal((await db.query<{years:string}>("select years from survey_legacy_people_cache where record_count=2")).rows[0].years,"11");
+    await db.exec("insert into survey_responses(employee_id,name,date_of_birth,years,round,questions,saved_at) values('E3','추가','1990-01-01','1',1,'[]',now())");
+    assert.equal(await cached(),8);
+    await db.exec("delete from survey_responses where employee_id='E3'");
+    assert.equal(await cached(),7);
+    const account = (await db.query<{id:string}>("insert into survey_admins(username,password_hash) values('tester',$1) returning id", [`scrypt-v1$${"a".repeat(32)}$${"b".repeat(128)}`])).rows[0].id;
+    const token = "d".repeat(64);
+    await db.query("insert into survey_admin_sessions(token_hash,admin_id) values($1,$2)",[token,account]);
+    const verify = async () => (await db.query<{a:{id:string}|null}>("select verify_survey_admin_session($1) a",[token])).rows[0].a;
+    assert.equal((await verify())?.id,account);
+    await db.query("update survey_admin_sessions set expires_at=now()-interval '1 second' where token_hash=$1",[token]);
+    assert.equal(await verify(),null);
+    await db.query("update survey_admin_sessions set expires_at=now()+interval '1 hour' where token_hash=$1",[token]);
+    await db.query("update survey_admins set is_active=false where id=$1",[account]);
+    assert.equal(await verify(),null);
+    assert.equal((await db.query<{allowed:boolean}>("select has_table_privilege('anon','survey_legacy_people_cache','SELECT') allowed")).rows[0].allowed,false);
+    assert.equal((await db.query<{allowed:boolean}>("select has_function_privilege('anon','verify_survey_admin_session(text)','EXECUTE') allowed")).rows[0].allowed,false);
     await db.exec("set role service_role");
     assert.equal((await db.query<{n:number}>("select sum(record_count)::int n from survey_legacy_people")).rows[0].n,7);
   } finally { await db.close(); }

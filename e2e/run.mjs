@@ -11,12 +11,13 @@ const origin = `http://127.0.0.1:${port}`;
 // Auth-only local Supabase stand-in: no production credentials or DB requests.
 const testToken = 'c'.repeat(64);
 const testHash = createHash('sha256').update(testToken).digest('hex');
-const authServer = createHttpServer((req, res) => {
+const authServer = createHttpServer(async (req, res) => {
+  let body=''; for await (const chunk of req) body+=chunk;
   const url = new URL(req.url, 'http://127.0.0.1');
-  let data = [];
-  if (url.pathname === '/rest/v1/survey_admin_sessions' && url.searchParams.get('token_hash') === `eq.${testHash}`) data = [{admin_id:'test-admin'}];
-  else if (url.pathname === '/rest/v1/survey_admins') data = [{id:'test-admin',username:'test-admin',is_active:true}];
-  else if (url.pathname !== '/rest/v1/survey_admin_sessions') res.statusCode = 500;
+  let data = null;
+  if (url.pathname === '/rest/v1/rpc/verify_survey_admin_session') {
+    if (JSON.parse(body).p_token_hash === testHash) data={id:'test-admin',username:'test-admin',is_active:true};
+  } else res.statusCode=500;
   res.setHeader('Content-Type','application/json'); res.end(JSON.stringify(data));
 });
 await new Promise(resolve => authServer.listen(0, '127.0.0.1', resolve));

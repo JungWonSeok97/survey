@@ -49,7 +49,7 @@ test("profile wizard, two questions, save-once, refresh resume and completion", 
       ...session,
       completed_rounds: input.round,
       pending_questions:
-        input.round === 30 ? [] : generateScenarios([1, 6], () => 0.999),
+        input.round === 30 ? [] : generateScenarios([5, 6], () => 0.999),
       completed_at: input.round === 30 ? "2026-01-01" : null,
     };
     await route.fulfill({
@@ -61,12 +61,11 @@ test("profile wizard, two questions, save-once, refresh resume and completion", 
       },
     });
   });
-  await page.goto("/survey");
+  await page.goto("/survey/group3");
   await expect(
     page.getByRole("heading", { name: "철도 현장의 판단을 들려주세요." }),
   ).toBeVisible();
-  await page.getByRole("button", { name: /PSF 1/ }).click();
-  await page.getByRole("button", { name: /PSF 6/ }).click();
+  await expect(page.locator(".assigned-psf")).toHaveCount(2);
   for (let step = 0; step < 3; step++) {
     for (const field of FIELD_GROUPS[step].fields) {
       if (field.type === "workTime") continue;
@@ -165,12 +164,17 @@ test("group assignment and unauthenticated admin access", async ({
     route.fulfill({ json: { success: true, session: null } }),
   );
   await page.goto("/survey/group3");
-  await expect(page.getByRole("button", { name: /PSF 5/ })).toBeDisabled();
-  await expect(page.getByRole("button", { name: /PSF 6/ })).toBeDisabled();
+  await expect(page.locator(".assigned-psf").filter({hasText:"PSF 5"})).toBeVisible();
+  await expect(page.locator(".assigned-psf").filter({hasText:"PSF 6"})).toBeVisible();
   const response = await request.get("/api/admin/responses");
   expect(response.status()).toBe(401);
   await page.goto("/admin/dashboard");
   await expect(page).toHaveURL(/\/admin$/);
   await expect(page.getByLabel("아이디", { exact: true })).toBeVisible();
   await expect(page.getByLabel("비밀번호", { exact: true })).toBeVisible();
+});
+
+test("only assigned group pages remain; retired entry pages return 404", async ({request}) => {
+  for (const path of ["/survey", "/main", "/second"]) expect((await request.get(path)).status()).toBe(404);
+  for (let n=1;n<=4;n++) expect((await request.get(`/survey/group${n}`)).status()).toBe(200);
 });

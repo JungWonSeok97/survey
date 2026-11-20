@@ -61,6 +61,7 @@ test("actual API handlers enforce authentication, validate before writes, preser
         status,
         headers: { "Content-Type": "application/json", ...extra },
       });
+    if (url.pathname === "/rest/v1/rpc/verify_survey_admin_session") return reply(payload.p_token_hash === hash(adminToken) ? {id:"admin",username:"admin",is_active:true} : null);
     if (url.pathname === "/rest/v1/survey_admin_sessions") {
       if (init?.method === "DELETE") return new Response(null, {status:204});
       assert.ok(url.searchParams.has("expires_at"));
@@ -102,7 +103,7 @@ test("actual API handlers enforce authentication, validate before writes, preser
       if (qids)
         assert.equal(
           qids,
-          "eq.{1,6}",
+          "eq.{5,6}",
           "PostgREST must receive an array literal",
         );
       if (
@@ -128,14 +129,14 @@ test("actual API handlers enforce authentication, validate before writes, preser
         {
           round: 1,
           saved_at: "2026-01-01T00:00:00Z",
-          questions: generateScenarios([1, 6], () => 0).map((q) => ({
+          questions: generateScenarios([5, 6], () => 0).map((q) => ({
             ...q,
             answer: "보통",
             answerCode: q.options[0].code,
           })),
         },
       ]);
-    if (url.pathname === "/rest/v1/survey_legacy_people") {
+    if (url.pathname === "/rest/v1/survey_legacy_people_cache") {
       const personId = "e".repeat(64);
       const person = {person_id:personId,name:"=FORMULA()",employee_id:"OLD",affiliation:"test",job:"test",years:"12",record_count:205,answer_count:410,
         first_saved_at:"2025-01-01T00:00:00Z",last_saved_at:"2025-12-01T00:00:00Z",profile:{name:"=FORMULA()",employee_id:"OLD",years:"12"}};
@@ -163,7 +164,7 @@ test("actual API handlers enforce authentication, validate before writes, preser
         await createSession(
           request("/api/survey/session", "POST", {
             participant: { name: "x" },
-            questionIds: [1, 6],
+            questionIds: [5, 6],
           }),
         )
       ).status,
@@ -181,11 +182,12 @@ test("actual API handlers enforce authentication, validate before writes, preser
       ).status,
       400,
     );
+    assert.equal((await createSession(request("/api/survey/session", "POST", {participant,questionIds:[1,6]}))).status,400);
     assert.equal(writes, 0);
     const created = await createSession(
       request("/api/survey/session", "POST", {
         participant,
-        questionIds: [6, 1],
+        questionIds: [6, 5],
       }),
     );
     assert.equal(created.status, 200, await created.clone().text());
@@ -195,12 +197,12 @@ test("actual API handlers enforce authentication, validate before writes, preser
     const retry = await createSession(
       request("/api/survey/session", "POST", {
         participant,
-        questionIds: [1, 6],
+        questionIds: [5, 6],
       }),
     );
     assert.equal((await retry.json()).session.id, id);
     assert.equal(writes, 1);
-    const resumed = await getSession(request("/api/survey/session?ids=1,6"));
+    const resumed = await getSession(request("/api/survey/session?ids=5,6"));
     assert.deepEqual(
       (await resumed.json()).session.pending_questions,
       body.session.pending_questions,
@@ -338,7 +340,7 @@ test("actual API handlers enforce authentication, validate before writes, preser
     assert.equal((await listResponses(request(`/api/admin/responses?source=legacy&id=${"f".repeat(64)}`,"GET",undefined,adminCookie))).status,404);
     assert.equal((await listResponses(request("/api/admin/responses?source=legacy&id=invalid","GET",undefined,adminCookie))).status,400);
     await listResponses(request("/api/admin/responses?source=legacy&years=10to20","GET",undefined,adminCookie));
-    assert.ok(calls.some(url=>url.pathname.endsWith("survey_legacy_people") && url.searchParams.getAll("years_numeric").join() === "gte.10,lt.20"));
+    assert.ok(calls.some(url=>url.pathname.endsWith("survey_legacy_people_cache") && url.searchParams.getAll("years_numeric").join() === "gte.10,lt.20"));
     const legacyAnswers = await exportResponses(request("/api/admin/export?source=legacy&kind=answers","GET",undefined,adminCookie));
     const legacyCSV = await legacyAnswers.text();
     assert.match(legacyCSV,/legacy-person:/); assert.match(legacyCSV,/원본 기록ID/);

@@ -101,7 +101,7 @@ export const csvRow = (values: unknown[]) =>
 
 export function legacyPeopleQuery(params: URLSearchParams, withProfile = false) {
   const { years, search } = filters(params);
-  let query = db().from("survey_legacy_people").select(
+  let query = db().from("survey_legacy_people_cache").select(
     "person_id,name,employee_id,affiliation,job,years,record_count,answer_count,first_saved_at,last_saved_at" + (withProfile ? ",profile" : ""),
     { count: "exact" },
   );
@@ -114,7 +114,7 @@ export function legacyPeopleQuery(params: URLSearchParams, withProfile = false) 
 }
 
 export async function legacyPersonDetail(personId: string) {
-  const person = await db().from("survey_legacy_people").select("profile,record_count,answer_count")
+  const person = await db().from("survey_legacy_people_cache").select("profile,record_count,answer_count")
     .eq("person_id", personId).maybeSingle();
   if (person.error) throw person.error;
   if (!person.data) return null;

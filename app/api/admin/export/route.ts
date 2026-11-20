@@ -5,6 +5,7 @@ import {
   filteredQuery,
   filters,
   legacyParticipant,
+  legacyPeopleQuery,
 } from "@/lib/admin-data";
 import { FIELD_GROUPS } from "@/lib/survey-schema";
 import type { Participant } from "@/lib/survey-schema";
@@ -20,11 +21,10 @@ export async function GET(request: NextRequest) {
       throw new HttpError(400, "내보내기 형식이 올바르지 않습니다.");
     // Validate the first query before opening the stream so schema/config errors are HTTP errors.
     const cutoff = new Date().toISOString();
-    const snapshot = () =>
-      filteredQuery(params).lte(
-        source === "legacy" ? "saved_at" : "created_at",
-        cutoff,
-      );
+    const peopleExport = source === "legacy" && kind === "participants";
+    const snapshot = () => peopleExport
+      ? legacyPeopleQuery(params, true).lte("last_saved_at", cutoff)
+      : filteredQuery(params).lte(source === "legacy" ? "saved_at" : "created_at", cutoff);
     const first = await snapshot().range(0, 199);
     if (first.error) throw first.error;
     const encoder = new TextEncoder();
@@ -38,16 +38,16 @@ export async function GET(request: NextRequest) {
           emit(
             kind === "participants"
               ? [
-                  "설문ID",
+                  source === "legacy" ? "참여자ID" : "설문ID",
                   "설문버전",
                   ...fields.map((f) => f.label),
-                  "고유 완료회차",
-                  "총회차",
+                  source === "legacy" ? "저장 회차 기록 수" : "고유 완료회차",
+                  source === "legacy" ? "PSF 응답 수" : "총회차",
                   "상태",
                   "생성일시",
                 ]
               : [
-                  "설문ID",
+                  source === "legacy" ? "참여자ID" : "설문ID",
                   "설문버전",
                   "회차",
                   "PSF",
@@ -56,6 +56,7 @@ export async function GET(request: NextRequest) {
                   "조건_JSON",
                   "조건코드_JSON",
                   "저장일시",
+                  "원본 기록ID",
                 ],
           );
           let offset = 0,
@@ -63,22 +64,22 @@ export async function GET(request: NextRequest) {
           while (rows.length) {
             for (const row of rows) {
               const participant: Participant =
-                source === "legacy" ? legacyParticipant(row) : row.participant;
+                source === "legacy" ? legacyParticipant(peopleExport ? row.profile : row) : row.participant;
               if (kind === "participants") {
                 emit([
-                  source === "legacy" ? `legacy-record:${row.id}` : row.id,
+                  source === "legacy" ? `legacy-person:${row.person_id}` : row.id,
                   source === "legacy" ? "legacy" : row.survey_version,
                   ...fields.map((f) => participant[f.key]),
-                  source === "legacy" ? "" : row.completed_rounds,
-                  source === "legacy" ? "" : row.total_rounds,
+                  source === "legacy" ? row.record_count : row.completed_rounds,
+                  source === "legacy" ? row.answer_count : row.total_rounds,
                   source === "legacy"
-                    ? "기존 회차 기록"
+                    ? "기존 참여자 기록"
                     : row.abandoned_at
                       ? "중단"
                       : row.completed_at
                         ? "완료"
                         : "진행 중",
-                  row.created_at || row.saved_at,
+                  row.first_saved_at || row.created_at || row.saved_at,
                 ]);
               } else {
                 let rounds = [row];
@@ -95,7 +96,7 @@ export async function GET(request: NextRequest) {
                 for (const round of rounds)
                   for (const question of round.questions || []) {
                     emit([
-                      source === "legacy" ? `legacy-record:${row.id}` : row.id,
+                      source === "legacy" ? `legacy-person:${row.person_id}` : row.id,
                       source === "legacy" ? "legacy" : row.survey_version,
                       round.round,
                       question.id,
@@ -104,6 +105,7 @@ export async function GET(request: NextRequest) {
                       question.conditions || {},
                       question.conditionCodes || {},
                       round.saved_at,
+                      source === "legacy" ? row.id : "",
                     ]);
                   }
               }

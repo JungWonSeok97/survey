@@ -135,23 +135,20 @@ test("actual API handlers enforce authentication, validate before writes, preser
           })),
         },
       ]);
-    if (url.pathname === "/rest/v1/survey_responses")
-      return reply([
-        {
-          id: 1,
-          name: "=FORMULA()",
-          employee_id: "OLD",
-          round: 1,
-          saved_at: "2025-01-01T00:00:00Z",
-          questions: [
-            {
-              id: 6,
-              answer: "나쁨",
-              conditions: { 낙뢰: "낙뢰가 발생할 경우" },
-            },
-          ],
-        },
-      ]);
+    if (url.pathname === "/rest/v1/survey_legacy_people") {
+      const personId = "e".repeat(64);
+      const person = {person_id:personId,name:"=FORMULA()",employee_id:"OLD",affiliation:"test",job:"test",years:"12",record_count:205,answer_count:410,
+        first_saved_at:"2025-01-01T00:00:00Z",last_saved_at:"2025-12-01T00:00:00Z",profile:{name:"=FORMULA()",employee_id:"OLD",years:"12"}};
+      if (url.searchParams.get("person_id") && url.searchParams.get("person_id") !== `eq.${personId}`) return reply([]);
+      return reply([person],200,{"Content-Range":"0-0/1"});
+    }
+    if (url.pathname === "/rest/v1/survey_legacy_records") {
+      assert.equal(url.searchParams.get("person_id"), `eq.${"e".repeat(64)}`);
+      const rows = Array.from({length:205},(_,n)=>({id:`old-${n}`,round:n%30+1,saved_at:"2025-01-01T00:00:00Z",questions:[]}));
+      const offset=Number(url.searchParams.get("offset")||0),size=Number(url.searchParams.get("limit")||1000);
+      return reply(rows.slice(offset,offset+size));
+    }
+    if (url.pathname === "/rest/v1/survey_legacy_answers") return reply([{id:1,person_id:"e".repeat(64),name:"=FORMULA()",employee_id:"OLD",round:1,saved_at:"2025-01-01T00:00:00Z",questions:[{id:6,answer:"보통",conditions:{안개:"안개가 발생할 경우"}}]}]);
     throw new Error(`Unexpected request: ${url.pathname}`);
   };
   try {
@@ -276,7 +273,7 @@ test("actual API handlers enforce authentication, validate before writes, preser
       );
     }
     const admin = await listResponses(
-      request("/api/admin/responses", "GET", undefined, adminCookie),
+      request("/api/admin/responses?source=v2", "GET", undefined, adminCookie),
     );
     assert.equal(admin.status, 200);
     const listing = await admin.json();
@@ -325,10 +322,26 @@ test("actual API handlers enforce authentication, validate before writes, preser
       ),
     );
     const oldCSV = await old.text();
-    assert.match(oldCSV, /legacy-record:1/);
+    assert.match(oldCSV, /legacy-person:/);
+    assert.equal(oldCSV.trim().split("\r\n").length, 2);
     assert.match(oldCSV, /'=FORMULA/);
     assert.equal(csvCell("=1+2"), '"\'=1+2"');
     assert.equal(csvCell('a"b'), '"a""b"');
+    const people = await listResponses(request("/api/admin/responses", "GET", undefined, adminCookie));
+    const peopleBody = await people.json();
+    assert.equal(peopleBody.total,1);
+    assert.equal(peopleBody.rows[0].record_count,205);
+    assert.equal(peopleBody.rows[0].profile,undefined);
+    const detail = await listResponses(request(`/api/admin/responses?source=legacy&id=${"e".repeat(64)}`,"GET",undefined,adminCookie));
+    assert.equal(detail.status,200);
+    assert.equal((await detail.json()).rounds.length,205);
+    assert.equal((await listResponses(request(`/api/admin/responses?source=legacy&id=${"f".repeat(64)}`,"GET",undefined,adminCookie))).status,404);
+    assert.equal((await listResponses(request("/api/admin/responses?source=legacy&id=invalid","GET",undefined,adminCookie))).status,400);
+    await listResponses(request("/api/admin/responses?source=legacy&years=10to20","GET",undefined,adminCookie));
+    assert.ok(calls.some(url=>url.pathname.endsWith("survey_legacy_people") && url.searchParams.getAll("years_numeric").join() === "gte.10,lt.20"));
+    const legacyAnswers = await exportResponses(request("/api/admin/export?source=legacy&kind=answers","GET",undefined,adminCookie));
+    const legacyCSV = await legacyAnswers.text();
+    assert.match(legacyCSV,/legacy-person:/); assert.match(legacyCSV,/원본 기록ID/);
     const loggedOut = await logout(
       request("/api/admin/logout", "POST", undefined, adminCookie),
     );

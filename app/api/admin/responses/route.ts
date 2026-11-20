@@ -3,7 +3,8 @@ import { db, failure, HttpError, json, requireAdmin } from "@/lib/server";
 import {
   filteredQuery,
   filters,
-  legacyParticipant,
+  legacyPeopleQuery,
+  legacyPersonDetail,
   summary,
 } from "@/lib/admin-data";
 import { validateUUID, ValidationError } from "@/lib/survey-schema";
@@ -17,21 +18,10 @@ export async function GET(request: NextRequest) {
       id = params.get("id");
     if (id) {
       if (source === "legacy") {
-        if (!/^[\w-]{1,60}$/.test(id))
-          throw new ValidationError("응답 식별자가 올바르지 않습니다.");
-        const { data, error } = await db()
-          .from("survey_responses")
-          .select("*")
-          .eq("id", id)
-          .maybeSingle();
-        if (error) throw error;
-        if (!data) throw new HttpError(404, "응답이 없습니다.");
-        return json({
-          success: true,
-          participant: legacyParticipant(data),
-          rounds: [{ ...data, session_id: null }],
-          source,
-        });
+        if (!/^[a-f0-9]{64}$/.test(id)) throw new ValidationError("참여자 식별자가 올바르지 않습니다.");
+        const detail = await legacyPersonDetail(id);
+        if (!detail) throw new HttpError(404, "참여자 기록이 없습니다.");
+        return json({ success: true, ...detail });
       }
       validateUUID(id);
       const [session, rounds] = await Promise.all([
@@ -54,21 +44,15 @@ export async function GET(request: NextRequest) {
     const page = Number(params.get("page") || 1);
     if (!Number.isInteger(page) || page < 1 || page > 100000)
       throw new ValidationError("페이지가 올바르지 않습니다.");
-    const { data, error, count } = await filteredQuery(params).range(
+    const { data, error, count } = await (source === "legacy" ? legacyPeopleQuery(params) : filteredQuery(params)).range(
       (page - 1) * 30,
       page * 30 - 1,
     );
-    if (
-      error &&
-      source === "legacy" &&
-      ["PGRST205", "42P01"].includes(error.code)
-    )
-      return json({ success: true, rows: [], total: 0, page });
     if (error) throw error;
     const rows =
       source === "legacy"
         ? (data || []).map((row) => ({
-            id: row.id,
+            id: row.person_id,
             participant: {
               name: row.name,
               employeeId: row.employee_id,
@@ -76,8 +60,10 @@ export async function GET(request: NextRequest) {
               job: row.job,
               years: String(row.years),
             },
-            round: row.round,
-            created_at: row.saved_at,
+            record_count: row.record_count,
+            answer_count: row.answer_count,
+            created_at: row.first_saved_at,
+            last_saved_at: row.last_saved_at,
             survey_version: "legacy",
           }))
         : ((data as SurveySession[]) || []).map(summary);

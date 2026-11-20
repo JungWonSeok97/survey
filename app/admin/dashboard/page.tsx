@@ -13,7 +13,9 @@ import type {
 type Row = Partial<SurveySession> & {
   id: string;
   participant: Participant;
-  round?: number;
+  record_count?: number;
+  answer_count?: number;
+  last_saved_at?: string;
 };
 type Listing = { rows: Row[]; total: number };
 type Detail = {
@@ -27,7 +29,7 @@ const dateLabel = (value?: string) =>
     : "—";
 export default function AdminDashboard() {
   const router = useRouter();
-  const [source, setSource] = useState("v2"),
+  const [source, setSource] = useState("legacy"),
     [years, setYears] = useState("all");
   const [search, setSearch] = useState(""),
     [query, setQuery] = useState(""),
@@ -163,8 +165,8 @@ export default function AdminDashboard() {
       <section className="panel admin-toolbar">
         <div className="source-tabs" role="group" aria-label="설문 데이터 구분">
           {[
-            ["v2", "새 설문"],
             ["legacy", "기존 응답"],
+            ["v2", "새 설문"],
           ].map(([value, label]) => (
             <button
               key={value}
@@ -232,8 +234,8 @@ export default function AdminDashboard() {
         </form>
         <div className="export-bar">
           <p className="small muted">
-            현재 검색 조건의 전체 기록을 CSV로 내보냅니다. 응답 파일에는 조건과
-            코드가 함께 포함됩니다.
+            현재 검색 조건의 자료를 CSV로 내보냅니다. 기존 응답의 참여자 정보는 사람별 1행이며,
+            응답·조건 파일은 각 회차의 모든 PSF 응답을 포함합니다.
           </p>
           <div className="action-buttons">
             <button
@@ -257,8 +259,9 @@ export default function AdminDashboard() {
       </section>
       {source === "legacy" && (
         <div className="alert info">
-          기존 자료는 저장된 회차별 기록으로 표시합니다. 과거 기록에는 설문
-          식별자가 없어 참여자별 완료율을 계산하지 않습니다.
+          사번·이름·생년월일이 같은 기록을 한 사람으로 묶었습니다. 식별 정보가 다르거나
+          누락된 기록은 별도로 표시합니다. ‘보기’에서 모든 회차별 응답을 확인할 수 있습니다.
+          참여자 정보는 가장 최근 기록을 표시하며, 반복 저장된 회차도 보존합니다.
         </div>
       )}
       {error && (
@@ -271,9 +274,9 @@ export default function AdminDashboard() {
       )}
       <section className="panel results-panel" aria-busy={loading}>
         <div className="section-heading">
-          <h2>{source === "legacy" ? "회차별 기록" : "설문별 진행 현황"}</h2>
+          <h2>{source === "legacy" ? "참여자별 응답 현황" : "설문별 진행 현황"}</h2>
           <span className="tag">
-            {loading ? "확인 중" : `${listing.total.toLocaleString()}건`}
+            {loading ? "확인 중" : `${listing.total.toLocaleString()}${source === "legacy" ? "개 참여자 기록" : "건"}`}
           </span>
         </div>
         {loading ? (
@@ -288,15 +291,15 @@ export default function AdminDashboard() {
           <div className="table-scroll">
             <table className="response-table">
               <caption className="sr-only">
-                {source === "legacy" ? "기존 회차별 응답" : "새 설문 진행 현황"}
+                {source === "legacy" ? "기존 참여자별 응답" : "새 설문 진행 현황"}
               </caption>
               <thead>
                 <tr>
                   <th>참여자</th>
                   <th>소속·직무</th>
                   <th>근속기간</th>
-                  <th>{source === "legacy" ? "회차" : "저장 현황"}</th>
-                  <th>시작 일시 (한국)</th>
+                  <th>{source === "legacy" ? "저장 기록·응답" : "저장 현황"}</th>
+                  <th>{source === "legacy" ? "최근 응답 일시 (한국)" : "시작 일시 (한국)"}</th>
                   <th>상세</th>
                 </tr>
               </thead>
@@ -314,7 +317,7 @@ export default function AdminDashboard() {
                     <td>{row.participant.years}년</td>
                     <td>
                       {source === "legacy" ? (
-                        `${row.round}회차`
+                        <><strong>회차 기록 {row.record_count?.toLocaleString()}건</strong><small>PSF 응답 {row.answer_count?.toLocaleString()}개</small></>
                       ) : (
                         <>
                           <strong>
@@ -330,7 +333,7 @@ export default function AdminDashboard() {
                         </>
                       )}
                     </td>
-                    <td>{dateLabel(row.created_at)}</td>
+                    <td>{dateLabel(source === "legacy" ? row.last_saved_at : row.created_at)}</td>
                     <td>
                       <button
                         className="button compact secondary"
@@ -402,7 +405,7 @@ export default function AdminDashboard() {
               </dl>
             </details>
             <h3 className="detail-rounds-heading">
-              저장된 회차 {detail.rounds.length}건
+              저장된 회차 기록 {detail.rounds.length}건
             </h3>
             {detail.rounds.map((round) => (
               <details key={round.id || round.round} className="round-details">

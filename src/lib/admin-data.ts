@@ -39,7 +39,7 @@ export function legacyParticipant(row: LegacyRecord): Participant {
   );
 }
 export function filters(params: URLSearchParams) {
-  const source = params.get("source") || "v2",
+  const source = params.get("source") || "legacy",
     years = params.get("years") || "all",
     search = (params.get("search") || "").trim();
   if (
@@ -56,12 +56,13 @@ export function filters(params: URLSearchParams) {
 export function filteredQuery(params: URLSearchParams) {
   const { source, years, search } = filters(params);
   let query = db()
-    .from(source === "legacy" ? "survey_responses" : "survey_sessions")
+    .from(source === "legacy" ? "survey_legacy_answers" : "survey_sessions")
     .select("*", { count: "exact" });
-  if (years === "under10") query = query.lt("years", 10);
-  if (years === "10to20") query = query.gte("years", 10).lt("years", 20);
-  if (years === "20to30") query = query.gte("years", 20).lt("years", 30);
-  if (years === "over30") query = query.gte("years", 30);
+  const yearColumn = source === "legacy" ? "person_years_numeric" : "years";
+  if (years === "under10") query = query.lt(yearColumn, 10);
+  if (years === "10to20") query = query.gte(yearColumn, 10).lt(yearColumn, 20);
+  if (years === "20to30") query = query.gte(yearColumn, 20).lt(yearColumn, 30);
+  if (years === "over30") query = query.gte(yearColumn, 30);
   if (search)
     query = query.or(
       source === "legacy"
@@ -97,3 +98,36 @@ export function csvCell(value: unknown) {
 }
 export const csvRow = (values: unknown[]) =>
   values.map(csvCell).join(",") + "\r\n";
+
+export function legacyPeopleQuery(params: URLSearchParams, withProfile = false) {
+  const { years, search } = filters(params);
+  let query = db().from("survey_legacy_people").select(
+    "person_id,name,employee_id,affiliation,job,years,record_count,answer_count,first_saved_at,last_saved_at" + (withProfile ? ",profile" : ""),
+    { count: "exact" },
+  );
+  if (years === "under10") query = query.lt("years_numeric", 10);
+  if (years === "10to20") query = query.gte("years_numeric", 10).lt("years_numeric", 20);
+  if (years === "20to30") query = query.gte("years_numeric", 20).lt("years_numeric", 30);
+  if (years === "over30") query = query.gte("years_numeric", 30);
+  if (search) query = query.or(`name.ilike.%${search}%,employee_id.ilike.%${search}%`);
+  return query.order("last_saved_at", { ascending: false, nullsFirst: false }).order("person_id");
+}
+
+export async function legacyPersonDetail(personId: string) {
+  const person = await db().from("survey_legacy_people").select("profile,record_count,answer_count")
+    .eq("person_id", personId).maybeSingle();
+  if (person.error) throw person.error;
+  if (!person.data) return null;
+  const rounds: Record<string, unknown>[] = [];
+  // Paginate so long histories cannot be cut off by PostgREST's row limit.
+  for (let offset = 0; ; offset += 200) {
+    const result = await db().from("survey_legacy_records").select("id,round,questions,saved_at")
+      .eq("person_id", personId).order("saved_at", { ascending: true, nullsFirst: false }).order("id")
+      .range(offset, offset + 199);
+    if (result.error) throw result.error;
+    rounds.push(...(result.data || []));
+    if ((result.data || []).length < 200) break;
+  }
+  return { participant: legacyParticipant(person.data.profile), rounds, source: "legacy", personId,
+    recordCount: person.data.record_count, answerCount: person.data.answer_count };
+}

@@ -11,6 +11,7 @@ import { validateUUID, ValidationError } from "@/lib/survey-schema";
 import type { SurveySession } from "@/lib/survey-schema";
 
 export async function GET(request: NextRequest) {
+  const started = Date.now();
   try {
     await requireAdmin(request);
     const params = request.nextUrl.searchParams,
@@ -69,6 +70,6 @@ export async function GET(request: NextRequest) {
         : ((data as SurveySession[]) || []).map(summary);
     return json({ success: true, rows, total: count || 0, page });
   } catch (error) {
-    return failure(error);
+    return failure(error, "admin.responses.get", started);
   }
 }

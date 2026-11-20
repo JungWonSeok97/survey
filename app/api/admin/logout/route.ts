@@ -10,6 +10,7 @@ import {
   sameOrigin,
 } from "@/lib/server";
 export async function POST(request: NextRequest) {
+  const started = Date.now();
   try {
     sameOrigin(request);
     const token = request.cookies.get(ADMIN_COOKIE)?.value;
@@ -21,6 +22,6 @@ export async function POST(request: NextRequest) {
     response.cookies.set(ADMIN_COOKIE, "", { ...cookieOptions, maxAge: 0 });
     return response;
   } catch (error) {
-    return failure(error);
+    return failure(error, "admin.logout.post", started);
   }
 }

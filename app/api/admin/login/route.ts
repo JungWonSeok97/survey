@@ -4,6 +4,7 @@ import { ADMIN_COOKIE, body, cookieOptions, db, failure, hash, HttpError, json, 
 import { DUMMY_HASH, verifyPassword } from "@/lib/admin-password";
 import { onlyKeys, ValidationError } from "@/lib/survey-schema";
 export async function POST(request: NextRequest) {
+  const started = Date.now();
   try {
     const input = await body(request);
     onlyKeys(input, ["username", "password"]);
@@ -27,5 +28,5 @@ export async function POST(request: NextRequest) {
     const response = json({ success: true });
     response.cookies.set(ADMIN_COOKIE, token, { ...cookieOptions, maxAge: 3600 });
     return response;
-  } catch (error) { return failure(error); }
+  } catch (error) { return failure(error, "admin.login.post", started); }
 }

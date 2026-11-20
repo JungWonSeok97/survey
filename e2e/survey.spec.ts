@@ -16,6 +16,10 @@ test("profile wizard, two questions, save-once, refresh resume and completion", 
     pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.route("**/api/survey/session*", async (route) => {
+    if (route.request().method() === "DELETE") {
+      expect(route.request().postDataJSON().disconnect).toBe(true);
+      session = null;
+    }
     if (route.request().method() === "POST") {
       const input = route.request().postDataJSON();
       payloads.push(input);
@@ -32,6 +36,10 @@ test("profile wizard, two questions, save-once, refresh resume and completion", 
         completed_at: null,
         abandoned_at: null,
       };
+    }
+    if (session) {
+      for (const q of session.pending_questions)
+        q.conditions = Object.fromEntries(Object.entries(q.conditions).sort(([a], [b]) => a.localeCompare(b)));
     }
     await route.fulfill({ json: { success: true, session } });
   });
@@ -106,6 +114,8 @@ test("profile wizard, two questions, save-once, refresh resume and completion", 
   ).toBe("09:00/18:00");
   await page.getByRole("radio").first().check();
   await page.getByRole("button", { name: "다음 문항 →", exact: true }).click();
+  const indoor = page.locator(".condition-group").filter({has: page.getByRole("heading", {name:"실내 쾌적성", exact:true})});
+  await expect(indoor.locator("dt")).toHaveText(["실내 온도", "실내 습도", "통풍"]);
   await expect(
     page.getByText("낙뢰가 발생하지 않을 경우", { exact: true }),
   ).toBeVisible();
@@ -153,6 +163,10 @@ test("profile wizard, two questions, save-once, refresh resume and completion", 
     page.getByText("30회차 · 총 60개 응답이 서버에 저장되었습니다."),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: /메일|제출/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "작성 종료 / 새 설문 시작" }).click();
+  await page.getByRole("button", { name: "연결 해제 · 다른 참여자로 시작" }).click();
+  await expect(page.locator("#name")).toHaveValue("");
+  await expect(page.locator("#employeeId")).toHaveValue("");
   expect(pageErrors).toEqual([]);
 });
 

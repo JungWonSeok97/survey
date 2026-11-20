@@ -53,11 +53,13 @@ export function filters(params: URLSearchParams) {
     );
   return { source, years, search };
 }
-export function filteredQuery(params: URLSearchParams) {
+export function filteredQuery(params: URLSearchParams, includeRounds = false, withCount = true) {
   const { source, years, search } = filters(params);
-  let query = db()
-    .from(source === "legacy" ? "survey_legacy_answers" : "survey_sessions")
-    .select("*", { count: "exact" });
+  const table = db().from(source === "legacy" ? "survey_legacy_answers" : "survey_sessions");
+  const count = withCount ? { count: "exact" as const } : {};
+  let query = includeRounds
+    ? table.select("id,survey_version,survey_rounds(round,questions,saved_at)")
+    : table.select("*", count);
   const yearColumn = source === "legacy" ? "person_years_numeric" : "years";
   if (years === "under10") query = query.lt(yearColumn, 10);
   if (years === "10to20") query = query.gte(yearColumn, 10).lt(yearColumn, 20);
@@ -103,7 +105,7 @@ export function legacyPeopleQuery(params: URLSearchParams, withProfile = false) 
   const { years, search } = filters(params);
   let query = db().from("survey_legacy_people_cache").select(
     "person_id,name,employee_id,affiliation,job,years,record_count,answer_count,first_saved_at,last_saved_at" + (withProfile ? ",profile" : ""),
-    { count: "exact" },
+    withProfile ? {} : { count: "exact" },
   );
   if (years === "under10") query = query.lt("years_numeric", 10);
   if (years === "10to20") query = query.gte("years_numeric", 10).lt("years_numeric", 20);

@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { ValidationError, record } from "./survey-schema";
 
@@ -16,8 +16,9 @@ export class HttpError extends Error {
   constructor(
     public status: number,
     message: string,
+    cause?: unknown,
   ) {
-    super(message);
+    super(message, { cause });
   }
 }
 export function db() {
@@ -47,6 +48,13 @@ export function owner(request: NextRequest, create = false) {
         ? randomBytes(32).toString("hex")
         : null;
   return token ? { token, hash: hash(token) } : null;
+}
+export function participantSession(row: Record<string, unknown> | null) {
+  if (!row) return null;
+  const { id, survey_version, question_ids, completed_rounds, total_rounds,
+    pending_questions, completed_at, abandoned_at, created_at, updated_at } = row;
+  return { id, survey_version, question_ids, completed_rounds, total_rounds,
+    pending_questions, completed_at, abandoned_at, created_at, updated_at };
 }
 export function json(data: unknown, status = 200) {
   return NextResponse.json(data, {
@@ -92,19 +100,32 @@ export async function body(request: NextRequest) {
     throw new ValidationError("요청 내용을 읽을 수 없습니다.");
   }
 }
-export function failure(error: unknown) {
+export function logServerError(error: unknown, operation: string, started?: number) {
+  const requestId = randomUUID();
+  const cause = error instanceof HttpError ? error.cause : error;
+  const code = cause && typeof cause === "object" && "code" in cause &&
+    typeof cause.code === "string" && /^(?:[0-9A-Z]{5}|PGRST\d{3})$/.test(cause.code)
+    ? cause.code : undefined;
+  console.error(JSON.stringify({ requestId, operation, dbCode: code,
+    status: error instanceof HttpError ? error.status : 500, elapsedMs: started === undefined ? undefined : Date.now() - started }));
+  return requestId;
+}
+export function failure(error: unknown, operation: string, started: number) {
   if (error instanceof ValidationError)
     return json(
       { success: false, error: error.message, field: error.field },
       400,
     );
+  const requestId = error instanceof HttpError && error.status < 500 ? undefined :
+    logServerError(error, operation, started);
   if (error instanceof HttpError)
-    return json({ success: false, error: error.message }, error.status);
+    return json({ success: false, error: error.message, requestId }, error.status);
   // Do not log participant records, auth tokens, database details, or error stacks.
-  console.error("survey_request_failed");
+
   return json(
     {
       success: false,
+      requestId,
       error: "요청을 처리하지 못했습니다. 잠시 후 다시 시도해주세요.",
     },
     500,
@@ -129,7 +150,7 @@ export async function limit(
   if (error)
     throw new HttpError(
       503,
-      "설문 DB 설정을 확인해야 합니다. 관리자에게 문의해주세요.",
+      "설문 DB 설정을 확인해야 합니다. 관리자에게 문의해주세요.", error,
     );
   if (!data)
     throw new HttpError(429, "요청이 많습니다. 잠시 후 다시 시도해주세요.");
@@ -140,7 +161,7 @@ export async function requireAdmin(request: NextRequest) {
 export async function verifyAdminToken(token?: string) {
   if (!token || !/^[a-f0-9]{64}$/.test(token)) throw new HttpError(401, "관리자 로그인이 필요합니다.");
   const { data, error } = await db().rpc("verify_survey_admin_session", { p_token_hash: hash(token) });
-  if (error) throw new HttpError(503, "관리자 로그인 상태를 확인하지 못했습니다.");
+  if (error) throw new HttpError(503, "관리자 로그인 상태를 확인하지 못했습니다.", error);
   if (!data?.is_active) throw new HttpError(401, "로그인 시간이 만료되었거나 사용할 수 없는 계정입니다. 다시 로그인해주세요.");
   return data as { id: string; username: string; is_active: boolean };
 }

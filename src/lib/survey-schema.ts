@@ -1,6 +1,11 @@
 import { ALL_OPTION_LISTS, SURVEY_DATA } from "./surveyData";
 
-export const SURVEY_VERSION = "2026-11-19-v2";
+import { v2Options } from "./survey-v2-options";
+export const PREVIOUS_VERSION = "2026-11-19-v2";
+export const SURVEY_VERSION = "2026-11-20-v3";
+export function supportedVersion(version: string) {
+  return version === SURVEY_VERSION || version === PREVIOUS_VERSION;
+}
 export const TOTAL_ROUNDS = 30;
 export const JOBS = ["기관사", "관제사", "정비사", "선로작업자", "기타"];
 export type Participant = Record<string, string>;
@@ -174,6 +179,15 @@ export function onlyKeys(
   if (Object.keys(data).some((key) => !allowed.includes(key)))
     throw new ValidationError("지원하지 않는 입력 항목이 있습니다.");
 }
+// Broad survey entry limits used to catch typing errors.
+export const entryLimits: Record<string, readonly [number, number]> = {
+  years: [0, 80], bodyTemperature: [20, 45], systolicBP: [30, 350],
+  diastolicBP: [10, 250], pulse: [15, 300],
+};
+export const MEASUREMENT_UNKNOWN = "미측정";
+export function isMeasurement(key: string) {
+  return key !== "years" && Object.hasOwn(entryLimits, key);
+}
 export function validateParticipant(
   value: unknown,
   keys: readonly string[] = PARTICIPANT_KEYS,
@@ -214,17 +228,21 @@ export function validateParticipant(
       !/^([01]\d|2[0-3]):[0-5]\d\/([01]\d|2[0-3]):[0-5]\d$/.test(text)
     )
       throw new ValidationError("출근·퇴근 시각을 모두 선택해주세요.", key);
+    if (isMeasurement(key) && text === MEASUREMENT_UNKNOWN) {
+      result[key] = text;
+      continue;
+    }
     if (field.type === "number") {
       const number = Number(text);
+      const [min, max] = entryLimits[key];
       const valid =
         /^\d+(?:\.\d+)?$/.test(text) &&
         Number.isFinite(number) &&
-        (key === "years"
-          ? /^\d+$/.test(text) && number >= 0 && number <= 80
-          : number > 0 && number <= (key === "bodyTemperature" ? 60 : 1000));
+        (key !== "years" || Number.isInteger(number) && /^\d+$/.test(text)) &&
+        number >= min && number <= max;
       if (!valid)
         throw new ValidationError(
-          `${field.label}의 숫자 범위를 확인해주세요.`,
+          `${field.label}에 ${min}~${max} 범위의 값을 입력해주세요.`,
           key,
         );
     }
@@ -242,6 +260,10 @@ export function validateParticipant(
           key,
         );
     }
+    if (key === "healthCheckDate" && typeof data.dateOfBirth === "string" && text < data.dateOfBirth)
+      throw new ValidationError("건강검진 날짜가 생년월일보다 빠릅니다.", key);
+    if (key === "diastolicBP" && Number(data.systolicBP) <= Number(text))
+      throw new ValidationError("이완기 혈압이 수축기 혈압보다 낮은지 확인해주세요.", key);
     result[key] = text;
   }
   return result;
@@ -317,6 +339,7 @@ export function conditionCode(
 export function generateScenarios(
   ids: number[],
   random: () => number = Math.random,
+  version = SURVEY_VERSION,
 ): Scenario[] {
   return validateQuestionIds(ids).map((id) => {
     const q = SURVEY_DATA.find((item) => item.id === id)!;
@@ -324,7 +347,8 @@ export function generateScenarios(
     const conditions: Record<string, string> = {},
       conditionCodes: Record<string, string> = {};
     q.condition_keys.forEach((key, index) => {
-      const list = ALL_OPTION_LISTS[key as keyof typeof ALL_OPTION_LISTS];
+      const current = ALL_OPTION_LISTS[key as keyof typeof ALL_OPTION_LISTS];
+      const list = version === PREVIOUS_VERSION ? v2Options[key] ?? current : current;
       const option = Math.min(
         list.length - 1,
         Math.floor(random() * list.length),
@@ -338,8 +362,10 @@ export function generateScenarios(
     });
     return {
       id,
-      psf: q.psf,
-      text: q.text,
+      psf: version === PREVIOUS_VERSION && id === 1 ? "피로도" : q.psf,
+      text: version === PREVIOUS_VERSION && id === 7
+        ? "7. 다음의 조건이라고 가정했을 때, 귀하가 느끼는 작업 절차는 어느 정도입니까?"
+        : q.text,
       conditions,
       conditionCodes,
       options: q.options.map((label, i) => ({

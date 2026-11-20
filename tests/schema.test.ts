@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { ALL_OPTION_LISTS, SURVEY_DATA } from "../src/lib/surveyData";
 import {
+  PREVIOUS_VERSION,
   FIELD_GROUPS,
   generateScenarios,
   validateAnswers,
@@ -32,8 +33,10 @@ test("profile validation accepts complete and stepwise input, rejects malformed 
     companyEmail: "bad",
     officePhone: "abc",
     workTime: "25:00/18:00",
-    bodyTemperature: "NaN",
-    pulse: "-1",
+    bodyTemperature: "1",
+    pulse: "999",
+    systolicBP: "999",
+    diastolicBP: "130",
   })) {
     assert.throws(
       () => validateParticipant({ ...participant, [key]: value }),
@@ -69,7 +72,7 @@ test("only two distinct assigned questions and valid answer codes are accepted",
     assert.throws(() => validateRound(value));
   assert.equal(validateRound(30), 30);
 });
-test("environment includes both lightning/fog states and exactly 82,944 combinations", () => {
+test("environment includes both lightning/fog states and exactly 124,416 combinations", () => {
   assert.deepEqual(ALL_OPTION_LISTS.env_lightning, [
     "낙뢰가 발생하지 않을 경우",
     "낙뢰가 발생할 경우",
@@ -86,7 +89,7 @@ test("environment includes both lightning/fog states and exactly 82,944 combinat
         n * ALL_OPTION_LISTS[key as keyof typeof ALL_OPTION_LISTS].length,
       1,
     ),
-    82944,
+    124416,
   );
   const low = generateScenarios([5, 6], () => 0),
     high = generateScenarios([5, 6], () => 0.999999);
@@ -115,4 +118,14 @@ test("environment includes both lightning/fog states and exactly 82,944 combinat
         ),
       );
     }
+});
+
+test("v2 continues using its original conditions and v3 appends a stable dust option", () => {
+  const old = generateScenarios([5, 6], () => 0.999, PREVIOUS_VERSION)[1];
+  const current = generateScenarios([5, 6], () => 0.999)[1];
+  assert.equal(old.conditionCodes["F.6.S.7"], "F.6.S.7.2");
+  assert.equal(current.conditionCodes["F.6.S.7"], "F.6.S.7.3");
+  assert.equal(current.conditions["황사"], "황사 영향이 없는 경우");
+  assert.equal(validateParticipant({...participant, pulse:"미측정"}).pulse, "미측정");
+  assert.throws(() => validateParticipant({...participant, healthCheckDate:"1980-01-01"}));
 });

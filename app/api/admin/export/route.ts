@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { db, failure, HttpError, requireAdmin } from "@/lib/server";
+import { logServerError, failure, HttpError, requireAdmin } from "@/lib/server";
 import {
   csvRow,
   filteredQuery,
@@ -12,6 +12,7 @@ import type { Participant } from "@/lib/survey-schema";
 export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
+  const started = Date.now();
   try {
     await requireAdmin(request);
     const params = request.nextUrl.searchParams,
@@ -22,9 +23,15 @@ export async function GET(request: NextRequest) {
     // Validate the first query before opening the stream so schema/config errors are HTTP errors.
     const cutoff = new Date().toISOString();
     const peopleExport = source === "legacy" && kind === "participants";
-    const snapshot = () => peopleExport
-      ? legacyPeopleQuery(params, true).lte("last_saved_at", cutoff)
-      : filteredQuery(params).lte(source === "legacy" ? "saved_at" : "created_at", cutoff);
+    const includeRounds = source === "v2" && kind === "answers";
+    const snapshot = () => {
+      if (peopleExport) return legacyPeopleQuery(params, true).lte("last_saved_at", cutoff);
+      const query = filteredQuery(params, includeRounds, false)
+        .lte(source === "legacy" ? "saved_at" : "created_at", cutoff);
+      if (includeRounds) return query.lte("survey_rounds.saved_at", cutoff)
+        .order("round", { referencedTable: "survey_rounds" });
+      return query;
+    };
     const first = await snapshot().range(0, 199);
     if (first.error) throw first.error;
     const encoder = new TextEncoder();
@@ -82,17 +89,7 @@ export async function GET(request: NextRequest) {
                   row.first_saved_at || row.created_at || row.saved_at,
                 ]);
               } else {
-                let rounds = [row];
-                if (source !== "legacy") {
-                  const result = await db()
-                    .from("survey_rounds")
-                    .select("round,questions,saved_at")
-                    .eq("session_id", row.id)
-                    .lte("saved_at", cutoff)
-                    .order("round");
-                  if (result.error) throw result.error;
-                  rounds = result.data || [];
-                }
+                const rounds = includeRounds ? row.survey_rounds : [row];
                 for (const round of rounds)
                   for (const question of round.questions || []) {
                     emit([
@@ -117,7 +114,8 @@ export async function GET(request: NextRequest) {
             rows = next.data || [];
           }
           controller.close();
-        } catch {
+        } catch (error) {
+          logServerError(error, "admin.export.stream", started);
           controller.error(new Error("Export interrupted"));
         }
       },
@@ -131,6 +129,6 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    return failure(error);
+    return failure(error, "admin.export.get", started);
   }
 }

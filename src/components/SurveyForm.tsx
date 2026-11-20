@@ -6,8 +6,11 @@ import ClockField from "./ClockField";
 import { SURVEY_DATA } from "@/lib/surveyData";
 import {
   FIELD_GROUPS,
+  entryLimits,
+  isMeasurement,
+  MEASUREMENT_UNKNOWN,
   JOBS,
-  SURVEY_VERSION,
+  supportedVersion,
   TOTAL_ROUNDS,
   validateParticipant,
   validateQuestionIds,
@@ -16,9 +19,10 @@ import {
 import type { Participant, SurveySession } from "@/lib/survey-schema";
 import { ApiError, requestJSON } from "@/lib/client-api";
 
+type PublicSession = Omit<SurveySession, "participant">;
 type SessionReply = {
   success: true;
-  session: SurveySession | null;
+  session: PublicSession | null;
   savedRound?: number;
 };
 const emptyProfile = () =>
@@ -27,7 +31,7 @@ const emptyProfile = () =>
       group.fields.map((field) => [field.key, ""]),
     ),
   );
-const draftKey = (session: SurveySession) =>
+const draftKey = (session: PublicSession) =>
   `rail-answers:${session.id}:${session.completed_rounds + 1}`;
 
 export default function SurveyForm({
@@ -38,7 +42,7 @@ export default function SurveyForm({
   groupName: string;
 }) {
   const fixedIds = questionIds.join(",");
-  const [session, setSession] = useState<SurveySession | null>(null);
+  const [session, setSession] = useState<PublicSession | null>(null);
   const [profile, setProfile] = useState<Participant>(emptyProfile);
   const [profileStep, setProfileStep] = useState(0);
   const [questionIndex, setQuestionIndex] = useState(0);
@@ -51,14 +55,14 @@ export default function SurveyForm({
   const [notice, setNotice] = useState("");
   const saving = useRef(false),
     resetDialog = useRef<HTMLDialogElement>(null);
-  const applySession = useCallback((next: SurveySession | null) => {
+  const applySession = useCallback((next: PublicSession | null) => {
     setSession(next);
     setQuestionIndex(0);
     setAnswers({});
     setError("");
     setErrorField("");
     if (next) {
-      setProfile(next.participant);
+
       try {
         const draft = JSON.parse(
           sessionStorage.getItem(draftKey(next)) || "{}",
@@ -120,6 +124,18 @@ export default function SurveyForm({
       active = false;
     };
   }, [fixedIds, applySession]);
+  useEffect(() => {
+    const restore = (event: PageTransitionEvent) => {
+      if (event.persisted) window.location.reload();
+    };
+    window.addEventListener("pageshow", restore);
+    const channel = typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel("survey-disconnect");
+    if (channel) channel.onmessage = () => window.location.reload();
+    return () => {
+      channel?.close();
+      window.removeEventListener("pageshow", restore);
+    };
+  }, []);
   function reload() {
     setBooting(true);
     setLoadFailed(false);
@@ -246,15 +262,15 @@ export default function SurveyForm({
       setBusy(false);
     }
   }
-  async function startOver() {
+  async function startOver(disconnect: boolean) {
     if (saving.current) return;
     saving.current = true;
     setBusy(true);
     try {
-      if (session && !session.completed_at)
+      if (session && (disconnect || !session.completed_at))
         await requestJSON("/api/survey/session", {
           method: "DELETE",
-          body: JSON.stringify({ sessionId: session.id }),
+          body: JSON.stringify({ sessionId: session.id, disconnect }),
         });
       if (session)
         try {
@@ -262,6 +278,19 @@ export default function SurveyForm({
         } catch {
           /* Optional local draft. */
         }
+      if (disconnect) {
+        try {
+          for (const key of Object.keys(sessionStorage))
+            if (key.startsWith("rail-answers:")) sessionStorage.removeItem(key);
+        } catch { /* The owner cookie has already been cleared. */ }
+        if (typeof BroadcastChannel !== "undefined") {
+          const channel = new BroadcastChannel("survey-disconnect");
+          channel.postMessage("disconnect");
+          channel.close();
+        }
+        window.location.replace(window.location.pathname);
+        return;
+      }
       resetDialog.current?.close();
       setSession(null);
       setAnswers({});
@@ -282,7 +311,7 @@ export default function SurveyForm({
   const errors = error && (
     <div className="alert error" role="alert">
       <span>{error}</span>
-      {session && (
+      {!loadFailed && (
         <button type="button" onClick={reload} disabled={busy}>
           저장 상태 다시 확인
         </button>
@@ -327,6 +356,7 @@ export default function SurveyForm({
         </div>
       ) : complete ? (
         <section className="panel completion">
+          {errors}
           <div className="completion-mark" aria-hidden="true">
             ✓
           </div>
@@ -347,7 +377,7 @@ export default function SurveyForm({
             className="button secondary"
             onClick={() => resetDialog.current?.showModal()}
           >
-            새 설문 시작
+            작성 종료 / 새 설문 시작
           </button>
         </section>
       ) : (
@@ -383,13 +413,6 @@ export default function SurveyForm({
                       </button>
                     ))}
                   </nav>
-                  <div className="sidebar-note">
-                    <strong>{session.participant.name}</strong>
-                    <p>
-                      {session.participant.affiliation} ·{" "}
-                      {session.participant.job}
-                    </p>
-                  </div>
                   <p className="small muted">
                     이 브라우저에서 다시 접속하면 저장된 회차에 이어서 작성할 수
                     있습니다.
@@ -399,7 +422,7 @@ export default function SurveyForm({
                     disabled={busy}
                     onClick={() => resetDialog.current?.showModal()}
                   >
-                    다른 설문 시작
+                    작성 종료 / 새 설문 시작
                   </button>
                 </>
               ) : (
@@ -537,7 +560,8 @@ export default function SurveyForm({
                               <input
                                 id={field.key}
                                 type={field.type}
-                                value={profile[field.key]}
+                                disabled={isMeasurement(field.key) && profile[field.key] === MEASUREMENT_UNKNOWN}
+                                value={isMeasurement(field.key) && profile[field.key] === MEASUREMENT_UNKNOWN ? "" : profile[field.key]}
                                 onChange={(e) =>
                                   updateProfile(field.key, e.target.value)
                                 }
@@ -546,13 +570,11 @@ export default function SurveyForm({
                                 max={
                                   field.type === "date"
                                     ? today
-                                    : field.key === "years"
-                                      ? 80
-                                      : undefined
+                                    : entryLimits[field.key]?.[1]
                                 }
                                 min={
                                   field.type === "number"
-                                    ? 0
+                                    ? entryLimits[field.key]?.[0]
                                     : field.type === "date"
                                       ? "1900-01-01"
                                       : undefined
@@ -568,6 +590,13 @@ export default function SurveyForm({
                               />
                             )}
                           </>
+                        )}
+                        {isMeasurement(field.key) && (
+                          <label className="measurement-choice">
+                            <input type="checkbox" checked={profile[field.key] === MEASUREMENT_UNKNOWN}
+                              onChange={event => updateProfile(field.key, event.target.checked ? MEASUREMENT_UNKNOWN : "")} />
+                            미측정
+                          </label>
                         )}
                         {errorField === field.key && (
                           <p id="profile-field-error" className="field-error">
@@ -618,7 +647,7 @@ export default function SurveyForm({
                     {Object.keys(answers).length} / 2 선택
                   </span>
                 </div>
-                {session.survey_version !== SURVEY_VERSION && (
+                {!supportedVersion(session.survey_version) && (
                   <div className="alert error" role="alert">
                     이전 버전의 설문입니다. 기존 응답은 보관되어 있습니다.
                     관리자에게 문의하거나 새 설문을 시작해주세요.
@@ -663,7 +692,7 @@ export default function SurveyForm({
                       <button
                         className="button primary"
                         disabled={
-                          busy || session.survey_version !== SURVEY_VERSION
+                          busy || !supportedVersion(session.survey_version)
                         }
                         onClick={() => void saveRound()}
                       >
@@ -691,7 +720,7 @@ export default function SurveyForm({
           저장된 응답은 보관됩니다.
           {!complete &&
             " 현재 설문은 중단 처리되며 다시 이어서 작성할 수 없습니다."}{" "}
-          기본정보는 확인 후 재사용할 수 있습니다.
+          공용 기기에서 연결을 해제하면 이 브라우저의 모든 그룹에서 다음 참여자가 빈 양식으로 시작합니다.
         </p>
         <div className="form-actions">
           <button
@@ -704,10 +733,15 @@ export default function SurveyForm({
           <button
             className="button primary"
             disabled={busy}
-            onClick={() => void startOver()}
+            onClick={() => void startOver(true)}
           >
-            새 설문 시작
+            연결 해제 · 다른 참여자로 시작
           </button>
+          {profile.name && (
+            <button className="button secondary" disabled={busy} onClick={() => void startOver(false)}>
+              내 기본정보로 다시 시작
+            </button>
+          )}
         </div>
       </dialog>
     </PageShell>

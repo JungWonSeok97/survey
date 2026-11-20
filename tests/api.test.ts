@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import {
+  DELETE as endSession,
   GET as getSession,
   POST as createSession,
 } from "../app/api/survey/session/route";
@@ -99,6 +100,13 @@ test("actual API handlers enforce authentication, validate before writes, preser
         };
         return reply(row);
       }
+      if (init?.method === "PATCH") {
+        assert.equal(url.searchParams.get("owner_hash"), `eq.${hash(token)}`);
+        assert.equal(url.searchParams.get("completed_at"), "is.null");
+        assert.equal(url.searchParams.get("abandoned_at"), "is.null");
+        assert.equal(url.searchParams.has("id"), false);
+        return new Response(null, { status: 204 });
+      }
       const qids = url.searchParams.get("question_ids");
       if (qids)
         assert.equal(
@@ -116,6 +124,8 @@ test("actual API handlers enforce authentication, validate before writes, preser
         rows = Array.from({ length: 205 }, (_, n) => ({
           ...row!,
           id: `session-${n}`,
+          survey_rounds: [{round: 1, saved_at: "2026-01-01", questions:
+            generateScenarios([5,6], () => 0).map(q => ({...q, answer: q.options[0].label, answerCode: q.options[0].code}))}],
         }));
       const offset = Number(url.searchParams.get("offset") || 0),
         limit = Number(url.searchParams.get("limit") || 1000),
@@ -311,10 +321,12 @@ test("actual API handlers enforce authentication, validate before writes, preser
     assert.ok(
       calls.some(
         (url) =>
-          url.pathname.endsWith("survey_rounds") &&
-          url.searchParams.has("saved_at"),
+          url.pathname.endsWith("survey_sessions") &&
+          url.searchParams.has("survey_rounds.saved_at"),
       ),
     );
+    assert.equal(calls.filter(url => url.pathname.endsWith("/survey_rounds")).length, 0);
+    assert.equal(body.session.participant, undefined);
     const old = await exportResponses(
       request(
         "/api/admin/export?source=legacy&kind=participants",
@@ -349,6 +361,9 @@ test("actual API handlers enforce authentication, validate before writes, preser
     );
     assert.equal(loggedOut.status, 200);
     assert.match(loggedOut.headers.get("set-cookie")!, /Max-Age=0/);
+    const end = await endSession(request("/api/survey/session", "DELETE", { sessionId: id, disconnect: true }));
+    assert.equal(end.status, 200);
+    assert.match(end.headers.get("set-cookie") || "", /rail_survey_owner=;.*Max-Age=0/i);
     failDatabase = true;
     const failed = await saveRound(request("/api/survey", "POST", valid));
     assert.equal(failed.status, 503);

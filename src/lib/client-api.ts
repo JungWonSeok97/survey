@@ -24,7 +24,8 @@ export async function requestJSON<T>(
     const data = await response.json().catch(() => null);
     if (!response.ok || !data?.success)
       throw new ApiError(
-        data?.error || "요청을 처리하지 못했습니다. 다시 시도해주세요.",
+        (data?.error || "요청을 처리하지 못했습니다. 다시 시도해주세요.") +
+            (data?.requestId ? ` (문의 번호 ${data.requestId})` : ""),
         response.status,
         data?.field,
       );

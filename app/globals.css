@@ -1134,3 +1134,6 @@ summary .muted {
     transition: none !important;
   }
 }
+
+.field .measurement-choice { display: flex; align-items: center; gap: .4rem; }
+.field .measurement-choice input { width: auto; min-height: auto; }

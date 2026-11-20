@@ -1,3 +1,4 @@
+import { SURVEY_DATA } from "@/lib/surveyData";
 import type { Scenario } from "@/lib/survey-schema";
 
 export default function MultipleChoiceQuestion({
@@ -12,15 +13,24 @@ export default function MultipleChoiceQuestion({
   disabled: boolean;
 }) {
   const entries = Object.entries(question.conditions);
-  const groups =
-    question.id === 6
-      ? [
-          { title: "실외 기상", items: entries.slice(0, 7) },
-          { title: "공간·노면", items: entries.slice(7, 9) },
-          { title: "실내 쾌적성", items: entries.slice(9, 12) },
-          { title: "소음·가시성", items: entries.slice(12) },
-        ]
-      : [{ title: "제시된 작업조건", items: entries }];
+  const environment = SURVEY_DATA.find(q => q.id === 6)!.condition_labels;
+  const sections = [
+    { title: "실외 기상", keys: ["env_wind", "env_rain", "env_out_humidity", "env_out_temp", "env_lightning", "env_fog", "env_dust"] },
+    { title: "공간·노면", keys: ["env_space", "env_friction"] },
+    { title: "실내 쾌적성", keys: ["env_in_temp", "env_in_humidity", "env_ventilation"] },
+    { title: "소음·가시성", keys: ["env_noise", "env_visibility"] },
+  ];
+  const labels: Record<string, string | undefined> = environment;
+  const groups = question.id === 6
+    ? sections.map(({ title, keys }) => ({
+        title,
+        items: keys.flatMap(key => {
+          const label = labels[key];
+          return label && Object.hasOwn(question.conditions, label)
+            ? [[label, question.conditions[label]]] : [];
+        }),
+      }))
+    : [{ title: "제시된 작업조건", items: entries }];
   return (
     <article
       className="scenario-card"

@@ -38,7 +38,6 @@ function AdminLoginForm() {
   return (
     <PageShell admin>
       <section className="panel login-panel">
-        <p className="eyebrow">RESEARCH ADMIN</p>
         <h1>응답 관리 로그인</h1>
         <p className="muted">등록된 관리자 계정으로 로그인해주세요.</p>
         {changed && <p className="alert info" role="status">비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요.</p>}
@@ -49,6 +48,8 @@ function AdminLoginForm() {
               id="username"
               type="text"
               autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required

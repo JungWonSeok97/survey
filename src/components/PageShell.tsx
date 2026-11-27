@@ -8,7 +8,7 @@ export default function PageShell({
   admin?: boolean;
   brandHref?: string;
 }) {
-  return (
+  const layout = (
     <>
       <a className="skip-link" href="#main-content">
         본문으로 이동
@@ -38,4 +38,5 @@ export default function PageShell({
       </footer>
     </>
   );
+  return !admin && brandHref ? <div className="participant-survey">{layout}</div> : layout;
 }

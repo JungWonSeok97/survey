@@ -1,4 +1,4 @@
-import { SURVEY_DATA } from "@/lib/surveyData";
+import { groupEnvironmentConditions } from "@/lib/environment-display";
 import type { Scenario } from "@/lib/survey-schema";
 
 export default function MultipleChoiceQuestion({
@@ -13,23 +13,8 @@ export default function MultipleChoiceQuestion({
   disabled: boolean;
 }) {
   const entries = Object.entries(question.conditions);
-  const environment = SURVEY_DATA.find(q => q.id === 6)!.condition_labels;
-  const sections = [
-    { title: "실외 기상", keys: ["env_wind", "env_rain", "env_out_humidity", "env_out_temp", "env_lightning", "env_fog", "env_dust"] },
-    { title: "공간·노면", keys: ["env_space", "env_friction"] },
-    { title: "실내 쾌적성", keys: ["env_in_temp", "env_in_humidity", "env_ventilation"] },
-    { title: "소음·가시성", keys: ["env_noise", "env_visibility"] },
-  ];
-  const labels: Record<string, string | undefined> = environment;
   const groups = question.id === 6
-    ? sections.map(({ title, keys }) => ({
-        title,
-        items: keys.flatMap(key => {
-          const label = labels[key];
-          return label && Object.hasOwn(question.conditions, label)
-            ? [[label, question.conditions[label]]] : [];
-        }),
-      }))
+    ? groupEnvironmentConditions(question.conditions)
     : [{ title: "제시된 작업조건", items: entries }];
   return (
     <article
@@ -62,9 +47,13 @@ export default function MultipleChoiceQuestion({
           </section>
         ))}
       </div>
-      <fieldset className="answer-fieldset" disabled={disabled}>
+      <fieldset
+        className="answer-fieldset"
+        disabled={disabled}
+        aria-describedby={`psf-${question.id}-answer-hint`}
+      >
         <legend>위 조건을 종합하면 어느 수준에 해당하나요?</legend>
-        <p className="field-hint">
+        <p className="field-hint" id={`psf-${question.id}-answer-hint`}>
           본인의 판단에 가장 가까운 답변 하나를 선택해주세요.
         </p>
         <div className="answer-options">

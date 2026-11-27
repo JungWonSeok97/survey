@@ -1137,3 +1137,173 @@ summary .muted {
 
 .field .measurement-choice { display: flex; align-items: center; gap: .4rem; }
 .field .measurement-choice input { width: auto; min-height: auto; }
+
+/* Respondents use one visual language from the first profile step to the last round. */
+.participant-survey {
+  --brand: #005bac;
+  --brand-dark: #00457f;
+  --ink: #172b40;
+  --muted: #506173;
+  --page: #f5f7fa;
+  --line: #d6dfe8;
+  --tint: #edf5fd;
+  --control-line: #8595a6;
+  min-height: 100vh;
+  background: var(--page);
+  color: var(--ink);
+  accent-color: var(--brand);
+}
+.participant-survey :focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: 3px;
+}
+.participant-survey .app-header {
+  border-top: 3px solid var(--brand);
+}
+.participant-survey :is(.panel, .scenario-card) {
+  border-radius: 10px;
+}
+.participant-survey .alert.info {
+  background: var(--tint);
+  border-color: #c4dcf1;
+  color: var(--brand-dark);
+}
+.participant-survey :is(.secondary, .answer-option:not(.selected),
+  input:not([type="radio"], [type="checkbox"], [aria-invalid="true"]), select:not([aria-invalid="true"])) {
+  border-color: var(--control-line);
+}
+.participant-survey input::placeholder {
+  color: #637384;
+}
+.participant-survey .assigned-psf {
+  box-shadow: none;
+  border-color: var(--line);
+  background: var(--page);
+}
+.participant-survey .profile-steps {
+  margin-top: 0;
+}
+.participant-survey .field .measurement-choice {
+  width: fit-content;
+  min-height: 40px;
+  margin: 0;
+  cursor: pointer;
+}
+.participant-survey .measurement-choice input {
+  width: 18px;
+  height: 18px;
+}
+.participant-survey .question-text {
+  color: var(--ink);
+  line-height: 1.65;
+}
+.participant-survey .question-nav + .small {
+  margin-top: 12px;
+}
+.participant-survey .condition-group h3 {
+  padding: 8px 14px;
+  background: #eef2f6;
+  font-size: 14px;
+}
+.participant-survey .conditions > div {
+  grid-template-columns: minmax(100px, 24%) minmax(0, 1fr);
+  border-color: var(--line);
+  padding: 8px 14px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.participant-survey .conditions :is(dt, dd) {
+  overflow-wrap: anywhere;
+}
+.participant-survey .answer-fieldset {
+  background: var(--page);
+}
+.participant-survey .answer-option {
+  min-height: 48px;
+}
+.participant-survey .answer-option:has(input:focus-visible) {
+  outline: 3px solid var(--brand);
+  outline-offset: 3px;
+}
+.participant-survey .round-heading {
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.participant-survey .round-progress {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.participant-survey .survey-actions {
+  background: white;
+  box-shadow: 0 3px 14px #172b400e;
+}
+.participant-survey .survey-actions .save-state {
+  display: block;
+  color: var(--muted);
+  font-size: 14px;
+}
+.participant-survey .round-checkpoint {
+  width: 100%;
+  max-width: 760px;
+  margin-inline: auto;
+  padding: clamp(24px, 4vw, 44px);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--brand);
+  border-radius: 10px;
+  background: white;
+}
+.participant-survey .round-checkpoint h2 {
+  margin-bottom: 8px;
+}
+.participant-survey .round-checkpoint progress {
+  margin-top: 20px;
+}
+.participant-survey .checkpoint-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
+.participant-survey .app-dialog .form-actions {
+  flex-wrap: wrap;
+}
+@media (max-width: 760px) {
+  .participant-survey .sidebar-panel > .small {
+    display: block;
+  }
+  .participant-survey .sidebar-panel .small,
+  .participant-survey .survey-actions .save-state {
+    font-size: 13px;
+  }
+  .participant-survey .profile-steps {
+    margin-block: 0 10px;
+  }
+  .participant-survey .conditions > div {
+    grid-template-columns: minmax(0, 30%) minmax(0, 1fr);
+    gap: 10px;
+    padding: 8px 10px;
+  }
+  .participant-survey .condition-groups {
+    margin-inline: 14px;
+  }
+  .participant-survey :is(.field input, .field select) {
+    font-size: 16px;
+  }
+  .participant-survey .survey-actions {
+    position: static;
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+    box-shadow: none;
+  }
+  .participant-survey .survey-actions .action-buttons,
+  .participant-survey .checkpoint-actions {
+    flex-wrap: wrap;
+  }
+  .participant-survey .survey-actions .button,
+  .participant-survey .checkpoint-actions .button {
+    flex: 1 1 auto;
+    min-height: 46px;
+    white-space: normal;
+  }
+}

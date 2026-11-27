@@ -40,6 +40,8 @@ export default function AdminDashboard() {
     [refresh, setRefresh] = useState(0);
   const [exporting, setExporting] = useState(""),
     [detail, setDetail] = useState<Detail | null>(null);
+  const [actionError, setActionError] = useState("");
+  const [selectedRound, setSelectedRound] = useState("");
   const [detailLoading, setDetailLoading] = useState(false),
     [detailError, setDetailError] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
@@ -79,6 +81,7 @@ export default function AdminDashboard() {
   async function openDetail(row: Row) {
     const request = ++detailRequest.current;
     setDetail(null);
+    setSelectedRound("");
     setDetailError("");
     setDetailLoading(true);
     dialog.current?.showModal();
@@ -99,7 +102,7 @@ export default function AdminDashboard() {
   async function download(kind: string) {
     if (exporting) return;
     setExporting(kind);
-    setError("");
+    setActionError("");
     try {
       const response = await fetch(`/api/admin/export?${params}&kind=${kind}`, {
         cache: "no-store",
@@ -122,7 +125,7 @@ export default function AdminDashboard() {
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
-      setError(
+      setActionError(
         e instanceof Error
           ? e.message
           : "파일을 내려받지 못했습니다. 다시 시도해주세요.",
@@ -133,25 +136,26 @@ export default function AdminDashboard() {
     }
   }
   async function logout() {
+    setActionError("");
     setLoggingOut(true);
     try {
       await requestJSON("/api/admin/logout", { method: "POST" });
       router.replace("/admin");
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "로그아웃하지 못했습니다.");
+      setActionError(e instanceof Error ? e.message : "로그아웃하지 못했습니다.");
     } finally {
       setLoggingOut(false);
     }
   }
   const pages = Math.max(1, Math.ceil(listing.total / 30));
+  const availableRounds = [...new Set(detail?.rounds.map((round) => round.round))].sort((a, b) => a - b);
+  const visibleRounds = detail?.rounds.filter((round) => !selectedRound || String(round.round) === selectedRound);
   return (
     <PageShell admin>
       <header className="page-heading">
         <div>
-          <p className="eyebrow">RESPONSE MANAGEMENT</p>
           <h1>설문 응답 관리</h1>
-          <p>저장된 응답과 작업조건을 확인하고 연구용 데이터로 내려받으세요.</p>
         </div>
         <button
           className="button secondary"
@@ -161,8 +165,7 @@ export default function AdminDashboard() {
           로그아웃
         </button>
       </header>
-      <AdminPasswordForm />
-      <section className="panel admin-toolbar">
+      <section className="panel admin-toolbar" aria-label="설문 선택 및 검색">
         <div className="source-tabs" role="group" aria-label="설문 데이터 구분">
           {[
             ["legacy", "기존 응답"],
@@ -174,6 +177,7 @@ export default function AdminDashboard() {
               className={source === value ? "selected" : ""}
               onClick={() => {
                 setSource(value);
+                setActionError("");
                 setPage(1);
               }}
             >
@@ -183,6 +187,8 @@ export default function AdminDashboard() {
         </div>
         <form
           className="filter-form"
+          role="search"
+          aria-label="참여자 검색"
           onSubmit={(e) => {
             e.preventDefault();
             setQuery(search.trim());
@@ -210,13 +216,14 @@ export default function AdminDashboard() {
             <label htmlFor="search">이름·사번 검색</label>
             <input
               id="search"
+              type="search"
               value={search}
               maxLength={60}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="이름 또는 사번"
             />
           </div>
-          <button className="button secondary" type="submit">
+          <button className="button primary" type="submit">
             검색
           </button>
           <button
@@ -234,8 +241,8 @@ export default function AdminDashboard() {
         </form>
         <div className="export-bar">
           <p className="small muted">
-            현재 검색 조건의 자료를 CSV로 내보냅니다. 기존 응답의 참여자 정보는 사람별 1행이며,
-            응답·조건 파일은 각 회차의 모든 PSF 응답을 포함합니다.
+            현재 검색 조건에 해당하는 모든 페이지를 내보냅니다.
+            {source === "legacy" && " 참여자 정보는 사람별 1행입니다."}
           </p>
           <div className="action-buttons">
             <button
@@ -256,14 +263,8 @@ export default function AdminDashboard() {
             </button>
           </div>
         </div>
+        {actionError && <p className="alert error" role="alert">{actionError}</p>}
       </section>
-      {source === "legacy" && (
-        <div className="alert info">
-          사번·이름·생년월일이 같은 기록을 한 사람으로 묶었습니다. 식별 정보가 다르거나
-          누락된 기록은 별도로 표시합니다. ‘보기’에서 모든 회차별 응답을 확인할 수 있습니다.
-          참여자 정보는 가장 최근 기록을 표시하며, 반복 저장된 회차도 보존합니다.
-        </div>
-      )}
       {error && (
         <div className="alert error" role="alert">
           {error}
@@ -272,13 +273,19 @@ export default function AdminDashboard() {
           </button>
         </div>
       )}
-      <section className="panel results-panel" aria-busy={loading}>
+      <section className="panel results-panel" aria-labelledby="response-list-title" aria-busy={loading}>
         <div className="section-heading">
-          <h2>{source === "legacy" ? "참여자별 응답 현황" : "설문별 진행 현황"}</h2>
-          <span className="tag">
-            {loading ? "확인 중" : `${listing.total.toLocaleString()}${source === "legacy" ? "개 참여자 기록" : "건"}`}
+          <h2 id="response-list-title">{source === "legacy" ? "참여자별 응답 현황" : "설문별 진행 현황"}</h2>
+          <span className="tag" role="status">
+            {loading ? "확인 중" : error ? "조회 실패" : `${listing.total.toLocaleString()}${source === "legacy" ? "개 참여자 기록" : "건"}`}
           </span>
         </div>
+        {source === "legacy" && (
+          <details className="grouping-help">
+            <summary>참여자 집계 기준</summary>
+            <p>사번·이름·생년월일이 같은 기록을 한 사람으로 묶습니다. 식별 정보가 다르거나 누락된 기록은 별도로 표시합니다. 참여자 정보는 가장 최근 기록이며, 상세 보기에는 반복 저장된 회차도 포함됩니다.</p>
+          </details>
+        )}
         {loading ? (
           <div className="empty-state" role="status">
             응답을 불러오고 있습니다.
@@ -289,33 +296,38 @@ export default function AdminDashboard() {
           </div>
         ) : (
           <div className="table-scroll">
-            <table className="response-table">
+            <table className="response-table" role="table">
               <caption className="sr-only">
                 {source === "legacy" ? "기존 참여자별 응답" : "새 설문 진행 현황"}
               </caption>
-              <thead>
-                <tr>
-                  <th>참여자</th>
-                  <th>소속·직무</th>
-                  <th>근속기간</th>
-                  <th>{source === "legacy" ? "저장 기록·응답" : "저장 현황"}</th>
-                  <th>{source === "legacy" ? "최근 응답 일시 (한국)" : "시작 일시 (한국)"}</th>
-                  <th>상세</th>
+              <thead role="rowgroup">
+                <tr role="row">
+                  <th scope="col" role="columnheader">참여자</th>
+                  <th scope="col" role="columnheader">소속·직무</th>
+                  <th scope="col" role="columnheader">근속기간</th>
+                  <th scope="col" role="columnheader">{source === "legacy" ? "저장 기록·응답" : "저장 현황"}</th>
+                  <th scope="col" role="columnheader">{source === "legacy" ? "최근 응답 일시 (한국)" : "시작 일시 (한국)"}</th>
+                  <th scope="col" role="columnheader">상세</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody role="rowgroup">
                 {listing.rows.map((row) => (
-                  <tr key={row.id}>
-                    <td>
+                  <tr key={row.id} role="row">
+                    <td role="cell" className="person-cell">
                       <strong>{row.participant.name || "—"}</strong>
                       <small>{row.participant.employeeId || "—"}</small>
                     </td>
-                    <td>
-                      {row.participant.affiliation}
+                    <td role="cell">
+                      <span className="mobile-label" aria-hidden="true">소속·직무</span>
+                      {row.participant.affiliation || "—"}
                       <small>{row.participant.job}</small>
                     </td>
-                    <td>{row.participant.years}년</td>
-                    <td>
+                    <td role="cell">
+                      <span className="mobile-label" aria-hidden="true">근속기간</span>
+                      {row.participant.years ? `${row.participant.years}년` : "—"}
+                    </td>
+                    <td role="cell">
+                      <span className="mobile-label" aria-hidden="true">저장 현황</span>
                       {source === "legacy" ? (
                         <><strong>회차 기록 {row.record_count?.toLocaleString()}건</strong><small>PSF 응답 {row.answer_count?.toLocaleString()}개</small></>
                       ) : (
@@ -333,14 +345,17 @@ export default function AdminDashboard() {
                         </>
                       )}
                     </td>
-                    <td>{dateLabel(source === "legacy" ? row.last_saved_at : row.created_at)}</td>
-                    <td>
+                    <td role="cell" className="date-cell">
+                      <span className="mobile-label" aria-hidden="true">{source === "legacy" ? "최근 응답 (한국)" : "시작 일시 (한국)"}</span>
+                      {dateLabel(source === "legacy" ? row.last_saved_at : row.created_at)}
+                    </td>
+                    <td role="cell" className="detail-cell">
                       <button
                         className="button compact secondary"
                         onClick={() => void openDetail(row)}
                         aria-label={`${row.participant.name || "참여자"} 응답 상세 보기`}
                       >
-                        보기
+                        상세 보기
                       </button>
                     </td>
                   </tr>
@@ -369,13 +384,14 @@ export default function AdminDashboard() {
           </button>
         </nav>
       </section>
+      <AdminPasswordForm />
       <dialog
         ref={dialog}
         className="app-dialog detail-dialog"
         aria-labelledby="detail-title"
       >
         <div className="section-heading">
-          <h2 id="detail-title">참여자와 응답 상세</h2>
+          <h2 id="detail-title">{detail?.participant.name ? `${detail.participant.name} · 응답 상세` : "참여자와 응답 상세"}</h2>
           <button
             className="button secondary compact"
             onClick={() => dialog.current?.close()}
@@ -407,7 +423,16 @@ export default function AdminDashboard() {
             <h3 className="detail-rounds-heading">
               저장된 회차 기록 {detail.rounds.length}건
             </h3>
-            {detail.rounds.map((round) => (
+            {availableRounds.length > 1 && (
+              <div className="round-filter field">
+                <label htmlFor="detail-round">회차 선택</label>
+                <select id="detail-round" value={selectedRound} onChange={(e) => setSelectedRound(e.target.value)}>
+                  <option value="">전체 회차</option>
+                  {availableRounds.map((round) => <option value={round} key={round}>{round}회차</option>)}
+                </select>
+              </div>
+            )}
+            {visibleRounds?.map((round) => (
               <details key={round.id || round.round} className="round-details">
                 <summary>
                   {round.round}회차{" "}

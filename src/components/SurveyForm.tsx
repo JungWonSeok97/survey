@@ -36,16 +36,15 @@ const draftKey = (session: PublicSession) =>
 
 export default function SurveyForm({
   questionIds,
-  groupName,
 }: {
   questionIds: [number, number];
-  groupName: string;
 }) {
   const fixedIds = questionIds.join(",");
   const [session, setSession] = useState<PublicSession | null>(null);
   const [profile, setProfile] = useState<Participant>(emptyProfile);
   const [profileStep, setProfileStep] = useState(0);
   const [questionIndex, setQuestionIndex] = useState(0);
+  const [roundView, setRoundView] = useState<"questions" | "saved" | "paused">("questions");
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [booting, setBooting] = useState(true),
     [loadFailed, setLoadFailed] = useState(false);
@@ -57,12 +56,13 @@ export default function SurveyForm({
     resetDialog = useRef<HTMLDialogElement>(null);
   const applySession = useCallback((next: PublicSession | null) => {
     setSession(next);
+    setRoundView("questions");
     setQuestionIndex(0);
     setAnswers({});
     setError("");
     setErrorField("");
+    setNotice("");
     if (next) {
-
       try {
         const draft = JSON.parse(
           sessionStorage.getItem(draftKey(next)) || "{}",
@@ -72,6 +72,11 @@ export default function SurveyForm({
           if (q.options.some((option) => option.code === draft[q.id]))
             accepted[q.id] = draft[q.id];
         setAnswers(accepted);
+        if (Object.keys(accepted).length) {
+          const firstMissing = next.pending_questions.findIndex((q) => !accepted[q.id]);
+          setQuestionIndex(firstMissing >= 0 ? firstMissing : next.pending_questions.length - 1);
+          setNotice("이 탭에서 선택한 답변을 복구했습니다. 두 문항을 확인한 뒤 이번 회차를 저장해주세요.");
+        }
       } catch {
         /* A local answer draft is optional; saved rounds are authoritative. */
       }
@@ -83,10 +88,6 @@ export default function SurveyForm({
         `/api/survey/session?ids=${fixedIds}`,
       );
       applySession(data.session);
-      if (data.session && !data.session.completed_at)
-        setNotice(
-          `${data.session.completed_rounds}회차까지 저장되어 있습니다. 이어서 작성해주세요.`,
-        );
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "진행 내용을 불러오지 못했습니다.",
@@ -104,10 +105,6 @@ export default function SurveyForm({
       .then((data) => {
         if (!active) return;
         applySession(data.session);
-        if (data.session && !data.session.completed_at)
-          setNotice(
-            `${data.session.completed_rounds}회차까지 저장되어 있습니다. 이어서 작성해주세요.`,
-          );
       })
       .catch((e) => {
         if (active) {
@@ -170,6 +167,15 @@ export default function SurveyForm({
       setErrorField("");
     }
   }
+  function goToProfileStep(step: number) {
+    setProfileStep(step);
+    setError("");
+    setErrorField("");
+    requestAnimationFrame(() => document.getElementById("profile-title")?.focus());
+  }
+  function focusRoundTitle() {
+    requestAnimationFrame(() => document.getElementById("round-title")?.focus());
+  }
   async function nextProfile() {
     if (saving.current) return;
     setError("");
@@ -181,8 +187,7 @@ export default function SurveyForm({
         FIELD_GROUPS[profileStep].fields.map((field) => field.key),
       );
       if (profileStep < FIELD_GROUPS.length - 1) {
-        setProfileStep(profileStep + 1);
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        goToProfileStep(profileStep + 1);
         return;
       }
       const participant = validateParticipant(profile);
@@ -193,8 +198,8 @@ export default function SurveyForm({
         body: JSON.stringify({ participant, questionIds }),
       });
       applySession(data.session);
-      setNotice("각 회차의 두 문항에 응답한 후 저장해주세요.");
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      setNotice("");
+      focusRoundTitle();
     } catch (e) {
       showIssue(e);
     } finally {
@@ -206,6 +211,7 @@ export default function SurveyForm({
     const next = { ...answers, [questionId]: code };
     setAnswers(next);
     setError("");
+    setNotice("");
     if (session)
       try {
         sessionStorage.setItem(draftKey(session), JSON.stringify(next));
@@ -251,10 +257,9 @@ export default function SurveyForm({
         /* Optional local draft. */
       }
       applySession(result.session);
-      setNotice(
-        `${result.savedRound}회차가 저장되었습니다. 다음 조건을 확인해주세요.`,
-      );
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      setNotice("");
+      if (!result.session?.completed_at) setRoundView("saved");
+      focusRoundTitle();
     } catch (e) {
       showIssue(e);
     } finally {
@@ -311,7 +316,7 @@ export default function SurveyForm({
   const errors = error && (
     <div className="alert error" role="alert">
       <span>{error}</span>
-      {!loadFailed && (
+      {!loadFailed && !errorField && (
         <button type="button" onClick={reload} disabled={busy}>
           저장 상태 다시 확인
         </button>
@@ -326,21 +331,20 @@ export default function SurveyForm({
     <PageShell brandHref={`/survey/group${(questionIds[0] + 1) / 2}`}>
       <header className="page-heading">
         <div>
-          <p className="eyebrow">RAILWAY HUMAN FACTORS</p>
           <h1>
             {complete
               ? "설문이 모두 저장되었습니다."
               : session
-                ? "제시된 조건을 읽고 판단해주세요."
-                : "철도 현장의 판단을 들려주세요."}
+                ? "작업조건 평가"
+                : "철도종사자 작업조건 설문"}
           </h1>
-          <p>
+          {!complete && roundView === "questions" && <p>
             {session
-              ? "현재 본인의 상태가 아닌, 화면에 제시된 작업조건을 기준으로 응답해주세요."
-              : "두 가지 PSF의 작업조건을 살펴보고, 각 상황에 대한 의견을 남겨주세요."}
-          </p>
+              ? "제시된 작업조건을 종합해 본인의 판단에 가장 가까운 수준을 선택해주세요."
+              : `총 ${TOTAL_ROUNDS}회 · 회차당 2문항 · 두 문항에 응답한 뒤 회차별로 저장합니다.`}
+          </p>}
         </div>
-        <span className="version-tag">{groupName || "문항 선택형"} · 30회</span>
+        <span className="version-tag">{(questionIds[0] + 1) / 2}그룹</span>
       </header>
       {booting ? (
         <div className="empty-state" role="status">
@@ -360,8 +364,7 @@ export default function SurveyForm({
           <div className="completion-mark" aria-hidden="true">
             ✓
           </div>
-          <p className="eyebrow">SURVEY COMPLETE</p>
-          <h2>참여해주셔서 감사합니다.</h2>
+          <h2 id="round-title" tabIndex={-1}>참여해주셔서 감사합니다.</h2>
           <p>30회차 · 총 60개 응답이 서버에 저장되었습니다.</p>
           <p className="muted">
             별도의 메일 전송이나 파일 제출은 필요하지 않습니다.
@@ -377,26 +380,43 @@ export default function SurveyForm({
             className="button secondary"
             onClick={() => resetDialog.current?.showModal()}
           >
-            작성 종료 / 새 설문 시작
+            다른 참여자로 전환
           </button>
+        </section>
+      ) : session && roundView !== "questions" ? (
+        <section className="panel round-checkpoint" aria-labelledby="round-title">
+          <h2 id="round-title" tabIndex={-1}>
+            {roundView === "paused" ? "설문을 잠시 마쳤습니다." : `${session.completed_rounds}회차까지 저장했습니다.`}
+          </h2>
+          <p>{roundView === "paused"
+            ? `이제 창을 닫아도 됩니다. 같은 기기와 브라우저에서 이 그룹 링크를 열면 ${session.completed_rounds + 1}회차부터 이어집니다.`
+            : `총 ${session.total_rounds}회 중 ${session.completed_rounds}회를 마쳤습니다. 지금 쉬었다가 같은 브라우저에서 이어서 작성할 수 있습니다.`}</p>
+          <progress value={session.completed_rounds} max={session.total_rounds} aria-label="저장된 회차" />
+          <div className="checkpoint-actions">
+            <button className="button primary" onClick={() => {
+              setRoundView("questions");
+              focusRoundTitle();
+            }}>
+              {session.completed_rounds + 1}회차 {roundView === "paused" ? "이어서 작성" : "계속하기"}
+            </button>
+            {roundView === "saved" && <button className="button secondary" onClick={() => {
+              setRoundView("paused");
+              focusRoundTitle();
+            }}>잠시 마치기</button>}
+          </div>
         </section>
       ) : (
         <div className="survey-layout">
           <aside className="survey-sidebar">
             <div className="panel sidebar-panel">
               <p className="eyebrow">{session ? "응답 진행" : "참여 준비"}</p>
-              <div className="progress-number">
-                <strong>{session?.completed_rounds || 0}</strong>
-                <span>/ {TOTAL_ROUNDS}회 저장</span>
-              </div>
-              <progress
-                value={session?.completed_rounds || 0}
-                max={TOTAL_ROUNDS}
-                aria-label="저장된 회차"
-              />
-              <p className="small muted">한 회차에 두 PSF를 평가합니다.</p>
               {session ? (
                 <>
+                  <div className="progress-number">
+                    <strong>{session.completed_rounds}</strong>
+                    <span>/ {session.total_rounds}회 저장</span>
+                  </div>
+                  <progress value={session.completed_rounds} max={session.total_rounds} aria-label="저장된 회차" />
                   <nav className="question-nav" aria-label="이번 회차 문항">
                     {session.pending_questions.map((q, i) => (
                       <button
@@ -414,15 +434,14 @@ export default function SurveyForm({
                     ))}
                   </nav>
                   <p className="small muted">
-                    이 브라우저에서 다시 접속하면 저장된 회차에 이어서 작성할 수
-                    있습니다.
+                    회차 저장 후 같은 기기와 브라우저에서 이어서 작성할 수 있습니다.
                   </p>
                   <button
                     className="text-button"
                     disabled={busy}
                     onClick={() => resetDialog.current?.showModal()}
                   >
-                    작성 종료 / 새 설문 시작
+                    다른 참여자로 전환
                   </button>
                 </>
               ) : (
@@ -431,6 +450,7 @@ export default function SurveyForm({
                     {FIELD_GROUPS.map((group, i) => (
                       <li
                         key={group.title}
+                        aria-current={i === profileStep ? "step" : undefined}
                         className={
                           i === profileStep
                             ? "current"
@@ -451,10 +471,6 @@ export default function SurveyForm({
                       선택해주세요.
                     </p>
                   </div>
-                  <p className="small muted">
-                    설문을 시작한 뒤에는 완료 회차와 현재 시나리오가 서버에
-                    보관됩니다.
-                  </p>
                 </>
               )}
             </div>
@@ -470,8 +486,7 @@ export default function SurveyForm({
               <>
                 {profileStep === 0 && (
                   <section className="panel assigned-psfs">
-                    <div className="section-heading"><h2>배정된 PSF</h2><span className="tag">{groupName}</span></div>
-                    <p className="small muted">배정된 두 PSF에 대해 매 회차 다른 작업조건을 제시합니다.</p>
+                    <div className="section-heading"><h2>평가할 두 영역</h2></div>
                     <div className="psf-options">
                       {SURVEY_DATA.filter(q => questionIds.includes(q.id)).map(q => (
                         <div className="assigned-psf" key={q.id}><span>PSF {q.id}</span><strong>{q.psf}</strong></div>
@@ -489,11 +504,12 @@ export default function SurveyForm({
                 >
                   <div className="section-heading">
                     <div>
-                      <p className="eyebrow">STEP 0{profileStep + 1} / 03</p>
-                      <h2>{currentGroup.title}</h2>
+                      <p className="eyebrow">참여자 정보 {profileStep + 1} / {FIELD_GROUPS.length}단계</p>
+                      <h2 id="profile-title" tabIndex={-1}>{currentGroup.title}</h2>
                       <p className="muted small">
                         {currentGroup.description} 모든 항목은 필수입니다.
                       </p>
+                      {profileStep === 0 && <p className="muted small">기본정보는 마지막 단계에서 ‘설문 시작하기’를 누르면 저장됩니다.</p>}
                     </div>
                   </div>
                   <fieldset disabled={busy} className="profile-fields">
@@ -593,7 +609,7 @@ export default function SurveyForm({
                         )}
                         {isMeasurement(field.key) && (
                           <label className="measurement-choice">
-                            <input type="checkbox" checked={profile[field.key] === MEASUREMENT_UNKNOWN}
+                            <input type="checkbox" aria-label={`${field.label} 미측정`} checked={profile[field.key] === MEASUREMENT_UNKNOWN}
                               onChange={event => updateProfile(field.key, event.target.checked ? MEASUREMENT_UNKNOWN : "")} />
                             미측정
                           </label>
@@ -611,10 +627,7 @@ export default function SurveyForm({
                       className="button secondary"
                       type="button"
                       disabled={profileStep === 0 || busy}
-                      onClick={() => {
-                        setProfileStep(profileStep - 1);
-                        setError("");
-                      }}
+                      onClick={() => goToProfileStep(profileStep - 1)}
                     >
                       이전
                     </button>
@@ -626,8 +639,8 @@ export default function SurveyForm({
                       {busy
                         ? "준비 중…"
                         : profileStep === 2
-                          ? "설문 시작하기 →"
-                          : "다음 단계 →"}
+                          ? "설문 시작하기"
+                          : "다음 단계"}
                     </button>
                   </div>
                 </form>
@@ -635,13 +648,8 @@ export default function SurveyForm({
             ) : (
               <>
                 <div className="round-heading">
-                  <div>
-                    <p className="eyebrow">
-                      ROUND{" "}
-                      {String(session.completed_rounds + 1).padStart(2, "0")} /
-                      30
-                    </p>
-                    <h2>이번 회차의 {questionIndex + 1}번째 문항</h2>
+                  <div className="round-progress">
+                    <h2 id="round-title" tabIndex={-1}>{session.completed_rounds + 1}/{session.total_rounds}회차 · {questionIndex + 1}/{session.pending_questions.length}문항</h2>
                   </div>
                   <span className="tag">
                     {Object.keys(answers).length} / 2 선택
@@ -664,11 +672,11 @@ export default function SurveyForm({
                   )}
                 </div>
                 <div className="survey-actions">
-                  <div>
+                  <div className="save-state">
                     <strong>
                       {busy
                         ? "응답을 저장하고 있습니다…"
-                        : `${session.completed_rounds}회차 저장 완료`}
+                        : session.completed_rounds ? `${session.completed_rounds}회차까지 저장됨` : "첫 회차 작성 중"}
                     </strong>
                     <span>두 문항을 확인한 후 이번 회차를 저장해주세요.</span>
                   </div>
@@ -686,7 +694,7 @@ export default function SurveyForm({
                         disabled={busy || !answers[currentQuestion?.id || 0]}
                         onClick={() => moveQuestion(1)}
                       >
-                        다음 문항 →
+                        다음 문항
                       </button>
                     ) : (
                       <button
@@ -700,7 +708,7 @@ export default function SurveyForm({
                           ? "저장 중…"
                           : session.completed_rounds === 29
                             ? "마지막 회차 저장"
-                            : "이번 회차 저장 →"}
+                            : "이번 회차 저장"}
                       </button>
                     )}
                   </div>
@@ -715,12 +723,10 @@ export default function SurveyForm({
         className="app-dialog"
         aria-labelledby="reset-title"
       >
-        <h2 id="reset-title">새 설문을 시작할까요?</h2>
+        <h2 id="reset-title">다른 참여자로 전환할까요?</h2>
         <p>
-          저장된 응답은 보관됩니다.
-          {!complete &&
-            " 현재 설문은 중단 처리되며 다시 이어서 작성할 수 없습니다."}{" "}
-          공용 기기에서 연결을 해제하면 이 브라우저의 모든 그룹에서 다음 참여자가 빈 양식으로 시작합니다.
+          저장된 응답은 보관됩니다. 연결을 해제하면 이 브라우저에서 진행 중인 모든 그룹의 설문이 종료됩니다.
+          다음 참여자는 기본정보부터 새로 작성합니다.
         </p>
         <div className="form-actions">
           <button
@@ -728,7 +734,7 @@ export default function SurveyForm({
             disabled={busy}
             onClick={() => resetDialog.current?.close()}
           >
-            계속 작성
+            돌아가기
           </button>
           <button
             className="button primary"

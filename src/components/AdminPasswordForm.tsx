@@ -26,7 +26,7 @@ export default function AdminPasswordForm() {
     } catch (e) { setError(e instanceof Error ? e.message : "비밀번호를 변경하지 못했습니다."); }
     finally { pending.current = false; setBusy(false); }
   }
-  return <details className="panel">
+  return <details className="panel account-settings">
     <summary>관리자 비밀번호 변경</summary>
     <p className="small muted">12자 이상으로 설정해주세요. 변경하면 모든 기기에서 로그아웃되며 새 비밀번호로 다시 로그인합니다.</p>
     <form onSubmit={change}>

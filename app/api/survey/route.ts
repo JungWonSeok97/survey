@@ -1,16 +1,17 @@
 import { NextRequest } from "next/server";
 import { randomInt } from "node:crypto";
-import { body, db, failure, HttpError, json, limit, owner } from "@/lib/server";
+import { participantSession, body, db, failure, HttpError, json, limit, owner } from "@/lib/server";
 import {
   generateScenarios,
   onlyKeys,
-  SURVEY_VERSION,
+  supportedVersion,
   validateAnswers,
   validateRound,
   validateUUID,
 } from "@/lib/survey-schema";
 
 export async function POST(request: NextRequest) {
+  const started = Date.now();
   try {
     const input = await body(request);
     onlyKeys(input, ["sessionId", "round", "answers"]);
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
     if (lookupError) throw lookupError;
     if (!session)
       throw new HttpError(404, "진행 중인 설문을 찾을 수 없습니다.");
-    if (session.survey_version !== SURVEY_VERSION)
+    if (!supportedVersion(session.survey_version))
       throw new HttpError(
         409,
         "설문 버전이 변경되었습니다. 관리자에게 문의해주세요. 기존 응답은 보관되어 있습니다.",
@@ -48,6 +49,7 @@ export async function POST(request: NextRequest) {
       p_next_questions: generateScenarios(
         session.question_ids,
         () => randomInt(0, 0x1000000) / 0x1000000,
+        session.survey_version,
       ),
     });
     if (error) {
@@ -60,8 +62,8 @@ export async function POST(request: NextRequest) {
         throw new HttpError(404, "진행 중인 설문을 찾을 수 없습니다.");
       throw error;
     }
-    return json({ success: true, ...data });
+    return json({ success: true, duplicate: data.duplicate, savedRound: data.savedRound, session: participantSession(data.session) });
   } catch (error) {
-    return failure(error);
+    return failure(error, "survey.post", started);
   }
 }

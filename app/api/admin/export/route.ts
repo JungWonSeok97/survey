@@ -1,16 +1,18 @@
 import { NextRequest } from "next/server";
-import { db, failure, HttpError, requireAdmin } from "@/lib/server";
+import { logServerError, failure, HttpError, requireAdmin } from "@/lib/server";
 import {
   csvRow,
   filteredQuery,
   filters,
   legacyParticipant,
+  legacyPeopleQuery,
 } from "@/lib/admin-data";
 import { FIELD_GROUPS } from "@/lib/survey-schema";
 import type { Participant } from "@/lib/survey-schema";
 export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
+  const started = Date.now();
   try {
     await requireAdmin(request);
     const params = request.nextUrl.searchParams,
@@ -20,11 +22,16 @@ export async function GET(request: NextRequest) {
       throw new HttpError(400, "내보내기 형식이 올바르지 않습니다.");
     // Validate the first query before opening the stream so schema/config errors are HTTP errors.
     const cutoff = new Date().toISOString();
-    const snapshot = () =>
-      filteredQuery(params).lte(
-        source === "legacy" ? "saved_at" : "created_at",
-        cutoff,
-      );
+    const peopleExport = source === "legacy" && kind === "participants";
+    const includeRounds = source === "v2" && kind === "answers";
+    const snapshot = () => {
+      if (peopleExport) return legacyPeopleQuery(params, true).lte("last_saved_at", cutoff);
+      const query = filteredQuery(params, includeRounds, false)
+        .lte(source === "legacy" ? "saved_at" : "created_at", cutoff);
+      if (includeRounds) return query.lte("survey_rounds.saved_at", cutoff)
+        .order("round", { referencedTable: "survey_rounds" });
+      return query;
+    };
     const first = await snapshot().range(0, 199);
     if (first.error) throw first.error;
     const encoder = new TextEncoder();
@@ -38,16 +45,16 @@ export async function GET(request: NextRequest) {
           emit(
             kind === "participants"
               ? [
-                  "설문ID",
+                  source === "legacy" ? "참여자ID" : "설문ID",
                   "설문버전",
                   ...fields.map((f) => f.label),
-                  "고유 완료회차",
-                  "총회차",
+                  source === "legacy" ? "저장 회차 기록 수" : "고유 완료회차",
+                  source === "legacy" ? "PSF 응답 수" : "총회차",
                   "상태",
                   "생성일시",
                 ]
               : [
-                  "설문ID",
+                  source === "legacy" ? "참여자ID" : "설문ID",
                   "설문버전",
                   "회차",
                   "PSF",
@@ -56,6 +63,7 @@ export async function GET(request: NextRequest) {
                   "조건_JSON",
                   "조건코드_JSON",
                   "저장일시",
+                  "원본 기록ID",
                 ],
           );
           let offset = 0,
@@ -63,39 +71,29 @@ export async function GET(request: NextRequest) {
           while (rows.length) {
             for (const row of rows) {
               const participant: Participant =
-                source === "legacy" ? legacyParticipant(row) : row.participant;
+                source === "legacy" ? legacyParticipant(peopleExport ? row.profile : row) : row.participant;
               if (kind === "participants") {
                 emit([
-                  source === "legacy" ? `legacy-record:${row.id}` : row.id,
+                  source === "legacy" ? `legacy-person:${row.person_id}` : row.id,
                   source === "legacy" ? "legacy" : row.survey_version,
                   ...fields.map((f) => participant[f.key]),
-                  source === "legacy" ? "" : row.completed_rounds,
-                  source === "legacy" ? "" : row.total_rounds,
+                  source === "legacy" ? row.record_count : row.completed_rounds,
+                  source === "legacy" ? row.answer_count : row.total_rounds,
                   source === "legacy"
-                    ? "기존 회차 기록"
+                    ? "기존 참여자 기록"
                     : row.abandoned_at
                       ? "중단"
                       : row.completed_at
                         ? "완료"
                         : "진행 중",
-                  row.created_at || row.saved_at,
+                  row.first_saved_at || row.created_at || row.saved_at,
                 ]);
               } else {
-                let rounds = [row];
-                if (source !== "legacy") {
-                  const result = await db()
-                    .from("survey_rounds")
-                    .select("round,questions,saved_at")
-                    .eq("session_id", row.id)
-                    .lte("saved_at", cutoff)
-                    .order("round");
-                  if (result.error) throw result.error;
-                  rounds = result.data || [];
-                }
+                const rounds = includeRounds ? row.survey_rounds : [row];
                 for (const round of rounds)
                   for (const question of round.questions || []) {
                     emit([
-                      source === "legacy" ? `legacy-record:${row.id}` : row.id,
+                      source === "legacy" ? `legacy-person:${row.person_id}` : row.id,
                       source === "legacy" ? "legacy" : row.survey_version,
                       round.round,
                       question.id,
@@ -104,6 +102,7 @@ export async function GET(request: NextRequest) {
                       question.conditions || {},
                       question.conditionCodes || {},
                       round.saved_at,
+                      source === "legacy" ? row.id : "",
                     ]);
                   }
               }
@@ -115,7 +114,8 @@ export async function GET(request: NextRequest) {
             rows = next.data || [];
           }
           controller.close();
-        } catch {
+        } catch (error) {
+          logServerError(error, "admin.export.stream", started);
           controller.error(new Error("Export interrupted"));
         }
       },
@@ -129,6 +129,6 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    return failure(error);
+    return failure(error, "admin.export.get", started);
   }
 }

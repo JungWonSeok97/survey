@@ -19,11 +19,13 @@ test("PostgreSQL migration: ownership, immutable conditions, duplicate rounds, c
     await db.exec(
       readFileSync("supabase/migrations/202611190001_survey_v2.sql", "utf8"),
     );
+    await db.exec(readFileSync("supabase/migrations/202611200003_fixed_groups.sql", "utf8"));
+    await assert.rejects(db.query("insert into survey_sessions(owner_hash,survey_version,question_ids,participant,pending_questions) values($1,'test','{1,6}','{}','[]')",["f".repeat(64)]), /survey_assigned_groups/);
     const hash = "a".repeat(64),
-      initial = generateScenarios([1, 6], () => 0),
-      next = generateScenarios([1, 6], () => 0.999);
+      initial = generateScenarios([5, 6], () => 0),
+      next = generateScenarios([5, 6], () => 0.999);
     const inserted = await db.query<{ id: string }>(
-      `insert into survey_sessions(owner_hash,survey_version,question_ids,participant,pending_questions) values($1,$2,'{1,6}',$3,$4) returning id`,
+      `insert into survey_sessions(owner_hash,survey_version,question_ids,participant,pending_questions) values($1,$2,'{5,6}',$3,$4) returning id`,
       [
         hash,
         SURVEY_VERSION,
@@ -34,7 +36,7 @@ test("PostgreSQL migration: ownership, immutable conditions, duplicate rounds, c
     const id = inserted.rows[0].id;
     const answers = validateAnswers(
       initial.map((q) => ({ questionId: q.id, answerCode: q.options[0].code })),
-      [1, 6],
+      [5, 6],
     );
     const save = async (round: number, payload = answers, owner = hash) => {
       const result = await db.query<{
@@ -79,7 +81,7 @@ test("PostgreSQL migration: ownership, immutable conditions, duplicate rounds, c
     );
     const alternate = validateAnswers(
       initial.map((q) => ({ questionId: q.id, answerCode: q.options[1].code })),
-      [1, 6],
+      [5, 6],
     );
     await assert.rejects(save(1, alternate), /ANSWER_CONFLICT/);
     for (let round = 2; round <= 30; round++) await save(round);

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import {
+  DELETE as endSession,
   GET as getSession,
   POST as createSession,
 } from "../app/api/survey/session/route";
@@ -10,6 +11,7 @@ import { GET as listResponses } from "../app/api/admin/responses/route";
 import { GET as exportResponses } from "../app/api/admin/export/route";
 import { POST as login } from "../app/api/admin/login/route";
 import { POST as logout } from "../app/api/admin/logout/route";
+import { hashPassword } from "../src/lib/admin-password";
 import { csvCell } from "../src/lib/admin-data";
 import { hash, OWNER_COOKIE, ADMIN_COOKIE } from "../src/lib/server";
 import { generateScenarios, SURVEY_VERSION } from "../src/lib/survey-schema";
@@ -30,8 +32,10 @@ const request = (
     headers: { origin, "content-type": "application/json", cookie },
     body: data === undefined ? undefined : JSON.stringify(data),
   });
-const adminCookie = `${ADMIN_COOKIE}=verified-admin`;
+const adminToken = "c".repeat(64);
+const adminCookie = `${ADMIN_COOKIE}=${adminToken}`;
 test("actual API handlers enforce authentication, validate before writes, preserve session and export complete conditions", async () => {
+  const passwordHash = await hashPassword("test-password");
   const originalFetch = globalThis.fetch;
   const env = { ...process.env };
   process.env.SUPABASE_URL = "https://survey.test";
@@ -51,34 +55,25 @@ test("actual API handlers enforce authentication, validate before writes, preser
           : input.url,
     );
     calls.push(url);
-    const headers = new Headers(init?.headers);
+
     const payload = init?.body ? JSON.parse(String(init.body)) : undefined;
     const reply = (value: unknown, status = 200, extra = {}) =>
       new Response(JSON.stringify(value), {
         status,
         headers: { "Content-Type": "application/json", ...extra },
       });
-    if (url.pathname === "/auth/v1/user") {
-      if (headers.get("authorization") === "Bearer verified-admin")
-        return reply({ id: "admin", app_metadata: { survey_admin: true } });
-      if (headers.get("authorization") === "Bearer ordinary-user")
-        return reply({
-          id: "user",
-          app_metadata: {},
-          user_metadata: { survey_admin: true },
-        });
-      return reply({ error: "invalid_token", message: "invalid token" }, 401);
+    if (url.pathname === "/rest/v1/rpc/verify_survey_admin_session") return reply(payload.p_token_hash === hash(adminToken) ? {id:"admin",username:"admin",is_active:true} : null);
+    if (url.pathname === "/rest/v1/survey_admin_sessions") {
+      if (init?.method === "DELETE") return new Response(null, {status:204});
+      assert.ok(url.searchParams.has("expires_at"));
+      return reply(url.searchParams.get("token_hash") === `eq.${hash(adminToken)}` ? [{admin_id:"admin"}] : []);
     }
-    if (url.pathname === "/auth/v1/token")
-      return reply({
-        access_token: "verified-admin",
-        expires_in: 3600,
-        refresh_token: "unused",
-        token_type: "bearer",
-        user: { id: "admin", app_metadata: { survey_admin: true } },
-      });
-    if (url.pathname === "/auth/v1/logout")
-      return new Response(null, { status: 204 });
+    if (url.pathname === "/rest/v1/survey_admins") return reply([{id:"admin",username:"admin",is_active:true,password_hash:passwordHash}]);
+    if (url.pathname === "/rest/v1/rpc/issue_survey_admin_session") {
+      assert.match(payload.p_token_hash, /^[a-f0-9]{64}$/);
+      assert.equal(payload.p_password_hash, passwordHash);
+      return reply(true);
+    }
     if (failDatabase)
       return reply(
         { code: "XX000", message: "SECRET database details test@example.com" },
@@ -105,11 +100,18 @@ test("actual API handlers enforce authentication, validate before writes, preser
         };
         return reply(row);
       }
+      if (init?.method === "PATCH") {
+        assert.equal(url.searchParams.get("owner_hash"), `eq.${hash(token)}`);
+        assert.equal(url.searchParams.get("completed_at"), "is.null");
+        assert.equal(url.searchParams.get("abandoned_at"), "is.null");
+        assert.equal(url.searchParams.has("id"), false);
+        return new Response(null, { status: 204 });
+      }
       const qids = url.searchParams.get("question_ids");
       if (qids)
         assert.equal(
           qids,
-          "eq.{1,6}",
+          "eq.{5,6}",
           "PostgREST must receive an array literal",
         );
       if (
@@ -122,6 +124,8 @@ test("actual API handlers enforce authentication, validate before writes, preser
         rows = Array.from({ length: 205 }, (_, n) => ({
           ...row!,
           id: `session-${n}`,
+          survey_rounds: [{round: 1, saved_at: "2026-01-01", questions:
+            generateScenarios([5,6], () => 0).map(q => ({...q, answer: q.options[0].label, answerCode: q.options[0].code}))}],
         }));
       const offset = Number(url.searchParams.get("offset") || 0),
         limit = Number(url.searchParams.get("limit") || 1000),
@@ -135,30 +139,27 @@ test("actual API handlers enforce authentication, validate before writes, preser
         {
           round: 1,
           saved_at: "2026-01-01T00:00:00Z",
-          questions: generateScenarios([1, 6], () => 0).map((q) => ({
+          questions: generateScenarios([5, 6], () => 0).map((q) => ({
             ...q,
             answer: "보통",
             answerCode: q.options[0].code,
           })),
         },
       ]);
-    if (url.pathname === "/rest/v1/survey_responses")
-      return reply([
-        {
-          id: 1,
-          name: "=FORMULA()",
-          employee_id: "OLD",
-          round: 1,
-          saved_at: "2025-01-01T00:00:00Z",
-          questions: [
-            {
-              id: 6,
-              answer: "나쁨",
-              conditions: { 낙뢰: "낙뢰가 발생할 경우" },
-            },
-          ],
-        },
-      ]);
+    if (url.pathname === "/rest/v1/survey_legacy_people_cache") {
+      const personId = "e".repeat(64);
+      const person = {person_id:personId,name:"=FORMULA()",employee_id:"OLD",affiliation:"test",job:"test",years:"12",record_count:205,answer_count:410,
+        first_saved_at:"2025-01-01T00:00:00Z",last_saved_at:"2025-12-01T00:00:00Z",profile:{name:"=FORMULA()",employee_id:"OLD",years:"12"}};
+      if (url.searchParams.get("person_id") && url.searchParams.get("person_id") !== `eq.${personId}`) return reply([]);
+      return reply([person],200,{"Content-Range":"0-0/1"});
+    }
+    if (url.pathname === "/rest/v1/survey_legacy_records") {
+      assert.equal(url.searchParams.get("person_id"), `eq.${"e".repeat(64)}`);
+      const rows = Array.from({length:205},(_,n)=>({id:`old-${n}`,round:n%30+1,saved_at:"2025-01-01T00:00:00Z",questions:[]}));
+      const offset=Number(url.searchParams.get("offset")||0),size=Number(url.searchParams.get("limit")||1000);
+      return reply(rows.slice(offset,offset+size));
+    }
+    if (url.pathname === "/rest/v1/survey_legacy_answers") return reply([{id:1,person_id:"e".repeat(64),name:"=FORMULA()",employee_id:"OLD",round:1,saved_at:"2025-01-01T00:00:00Z",questions:[{id:6,answer:"보통",conditions:{안개:"안개가 발생할 경우"}}]}]);
     throw new Error(`Unexpected request: ${url.pathname}`);
   };
   try {
@@ -173,7 +174,7 @@ test("actual API handlers enforce authentication, validate before writes, preser
         await createSession(
           request("/api/survey/session", "POST", {
             participant: { name: "x" },
-            questionIds: [1, 6],
+            questionIds: [5, 6],
           }),
         )
       ).status,
@@ -191,11 +192,12 @@ test("actual API handlers enforce authentication, validate before writes, preser
       ).status,
       400,
     );
+    assert.equal((await createSession(request("/api/survey/session", "POST", {participant,questionIds:[1,6]}))).status,400);
     assert.equal(writes, 0);
     const created = await createSession(
       request("/api/survey/session", "POST", {
         participant,
-        questionIds: [6, 1],
+        questionIds: [6, 5],
       }),
     );
     assert.equal(created.status, 200, await created.clone().text());
@@ -205,12 +207,12 @@ test("actual API handlers enforce authentication, validate before writes, preser
     const retry = await createSession(
       request("/api/survey/session", "POST", {
         participant,
-        questionIds: [1, 6],
+        questionIds: [5, 6],
       }),
     );
     assert.equal((await retry.json()).session.id, id);
     assert.equal(writes, 1);
-    const resumed = await getSession(request("/api/survey/session?ids=1,6"));
+    const resumed = await getSession(request("/api/survey/session?ids=5,6"));
     assert.deepEqual(
       (await resumed.json()).session.pending_questions,
       body.session.pending_questions,
@@ -275,15 +277,15 @@ test("actual API handlers enforce authentication, validate before writes, preser
               "/api/admin/responses",
               "GET",
               undefined,
-              `${ADMIN_COOKIE}=ordinary-user`,
+              `${ADMIN_COOKIE}=${"d".repeat(64)}`,
             ),
           )
         ).status,
-        403,
+        401,
       );
     }
     const admin = await listResponses(
-      request("/api/admin/responses", "GET", undefined, adminCookie),
+      request("/api/admin/responses?source=v2", "GET", undefined, adminCookie),
     );
     assert.equal(admin.status, 200);
     const listing = await admin.json();
@@ -293,7 +295,7 @@ test("actual API handlers enforce authentication, validate before writes, preser
       request(
         "/api/admin/login",
         "POST",
-        { email: "admin@example.com", password: "test-password" },
+        { username: "admin", password: "test-password" },
         "",
       ),
     );
@@ -319,10 +321,12 @@ test("actual API handlers enforce authentication, validate before writes, preser
     assert.ok(
       calls.some(
         (url) =>
-          url.pathname.endsWith("survey_rounds") &&
-          url.searchParams.has("saved_at"),
+          url.pathname.endsWith("survey_sessions") &&
+          url.searchParams.has("survey_rounds.saved_at"),
       ),
     );
+    assert.equal(calls.filter(url => url.pathname.endsWith("/survey_rounds")).length, 0);
+    assert.equal(body.session.participant, undefined);
     const old = await exportResponses(
       request(
         "/api/admin/export?source=legacy&kind=participants",
@@ -332,15 +336,34 @@ test("actual API handlers enforce authentication, validate before writes, preser
       ),
     );
     const oldCSV = await old.text();
-    assert.match(oldCSV, /legacy-record:1/);
+    assert.match(oldCSV, /legacy-person:/);
+    assert.equal(oldCSV.trim().split("\r\n").length, 2);
     assert.match(oldCSV, /'=FORMULA/);
     assert.equal(csvCell("=1+2"), '"\'=1+2"');
     assert.equal(csvCell('a"b'), '"a""b"');
+    const people = await listResponses(request("/api/admin/responses", "GET", undefined, adminCookie));
+    const peopleBody = await people.json();
+    assert.equal(peopleBody.total,1);
+    assert.equal(peopleBody.rows[0].record_count,205);
+    assert.equal(peopleBody.rows[0].profile,undefined);
+    const detail = await listResponses(request(`/api/admin/responses?source=legacy&id=${"e".repeat(64)}`,"GET",undefined,adminCookie));
+    assert.equal(detail.status,200);
+    assert.equal((await detail.json()).rounds.length,205);
+    assert.equal((await listResponses(request(`/api/admin/responses?source=legacy&id=${"f".repeat(64)}`,"GET",undefined,adminCookie))).status,404);
+    assert.equal((await listResponses(request("/api/admin/responses?source=legacy&id=invalid","GET",undefined,adminCookie))).status,400);
+    await listResponses(request("/api/admin/responses?source=legacy&years=10to20","GET",undefined,adminCookie));
+    assert.ok(calls.some(url=>url.pathname.endsWith("survey_legacy_people_cache") && url.searchParams.getAll("years_numeric").join() === "gte.10,lt.20"));
+    const legacyAnswers = await exportResponses(request("/api/admin/export?source=legacy&kind=answers","GET",undefined,adminCookie));
+    const legacyCSV = await legacyAnswers.text();
+    assert.match(legacyCSV,/legacy-person:/); assert.match(legacyCSV,/원본 기록ID/);
     const loggedOut = await logout(
       request("/api/admin/logout", "POST", undefined, adminCookie),
     );
     assert.equal(loggedOut.status, 200);
     assert.match(loggedOut.headers.get("set-cookie")!, /Max-Age=0/);
+    const end = await endSession(request("/api/survey/session", "DELETE", { sessionId: id, disconnect: true }));
+    assert.equal(end.status, 200);
+    assert.match(end.headers.get("set-cookie") || "", /rail_survey_owner=;.*Max-Age=0/i);
     failDatabase = true;
     const failed = await saveRound(request("/api/survey", "POST", valid));
     assert.equal(failed.status, 503);

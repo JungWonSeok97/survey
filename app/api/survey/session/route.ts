@@ -10,6 +10,7 @@ import {
   limit,
   owner,
   OWNER_COOKIE,
+  participantSession,
 } from "@/lib/server";
 import {
   generateScenarios,
@@ -20,13 +21,8 @@ import {
   validateUUID,
 } from "@/lib/survey-schema";
 
-function publicSession(row: Record<string, unknown> | null) {
-  if (!row) return null;
-  const result = { ...row };
-  delete result.owner_hash;
-  return result;
-}
 export async function GET(request: NextRequest) {
+  const started = Date.now();
   try {
     const access = owner(request);
     if (!access) {
@@ -58,14 +54,15 @@ export async function GET(request: NextRequest) {
     if (error)
       throw new HttpError(
         503,
-        "진행 내용을 불러오지 못했습니다. DB 설정을 확인해주세요.",
+        "진행 내용을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.", error,
       );
-    return json({ success: true, session: publicSession(data) });
+    return json({ success: true, session: participantSession(data) });
   } catch (error) {
-    return failure(error);
+    return failure(error, "survey.session.get", started);
   }
 }
 export async function POST(request: NextRequest) {
+  const started = Date.now();
   try {
     const input = await body(request);
     onlyKeys(input, ["participant", "questionIds"]);
@@ -116,35 +113,45 @@ export async function POST(request: NextRequest) {
       } else if (result.error) throw result.error;
       else session = result.data;
     }
-    const response = json({ success: true, session: publicSession(session) });
+    if (Object.entries(participant).some(([key, value]) => session.participant[key] !== value))
+      throw new HttpError(409, "이 브라우저에서 다른 참여자가 설문 중입니다. 진행 상태를 다시 불러온 뒤 연결을 해제해주세요.");
+    const response = json({ success: true, session: participantSession(session) });
     response.cookies.set(OWNER_COOKIE, access.token, {
       ...cookieOptions,
       maxAge: 30 * 86400,
     });
     return response;
   } catch (error) {
-    return failure(error);
+    return failure(error, "survey.session.post", started);
   }
 }
 export async function DELETE(request: NextRequest) {
+  const started = Date.now();
   try {
     const input = await body(request);
-    onlyKeys(input, ["sessionId"]);
+    onlyKeys(input, ["sessionId", "disconnect"]);
+    if (input.disconnect !== undefined && typeof input.disconnect !== "boolean")
+      throw new HttpError(400, "연결 해제 요청을 확인해주세요.");
     const id = validateUUID(input.sessionId),
       access = owner(request);
     if (!access) throw new HttpError(401, "설문 연결이 만료되었습니다.");
-    const { error } = await db()
+    const now = new Date().toISOString();
+    let update = db()
       .from("survey_sessions")
       .update({
-        abandoned_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        abandoned_at: now,
+        updated_at: now,
       })
-      .eq("id", id)
       .eq("owner_hash", access.hash)
-      .is("completed_at", null);
+      .is("completed_at", null)
+      .is("abandoned_at", null);
+    if (!input.disconnect) update = update.eq("id", id);
+    const { error } = await update;
     if (error) throw error;
-    return json({ success: true });
+    const response = json({ success: true });
+    if (input.disconnect) response.cookies.set(OWNER_COOKIE, "", { ...cookieOptions, maxAge: 0 });
+    return response;
   } catch (error) {
-    return failure(error);
+    return failure(error, "survey.session.delete", started);
   }
 }

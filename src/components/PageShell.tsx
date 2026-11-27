@@ -2,18 +2,20 @@ import Link from "next/link";
 export default function PageShell({
   children,
   admin = false,
+  brandHref,
 }: {
   children: React.ReactNode;
   admin?: boolean;
+  brandHref?: string;
 }) {
-  return (
+  const layout = (
     <>
       <a className="skip-link" href="#main-content">
         본문으로 이동
       </a>
       <header className="app-header">
         <div className="header-inner">
-          <Link className="brand" href="/survey">
+          <Link className="brand" href={brandHref || (admin ? "/admin/dashboard" : "/")}>
             <span className="brand-symbol" aria-hidden="true">
               R
             </span>
@@ -36,4 +38,5 @@ export default function PageShell({
       </footer>
     </>
   );
+  return !admin && brandHref ? <div className="participant-survey">{layout}</div> : layout;
 }

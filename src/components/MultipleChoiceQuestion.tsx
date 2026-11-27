@@ -1,3 +1,4 @@
+import { groupEnvironmentConditions } from "@/lib/environment-display";
 import type { Scenario } from "@/lib/survey-schema";
 
 export default function MultipleChoiceQuestion({
@@ -12,15 +13,9 @@ export default function MultipleChoiceQuestion({
   disabled: boolean;
 }) {
   const entries = Object.entries(question.conditions);
-  const groups =
-    question.id === 6
-      ? [
-          { title: "실외 기상", items: entries.slice(0, 7) },
-          { title: "공간·노면", items: entries.slice(7, 9) },
-          { title: "실내 쾌적성", items: entries.slice(9, 12) },
-          { title: "소음·가시성", items: entries.slice(12) },
-        ]
-      : [{ title: "제시된 작업조건", items: entries }];
+  const groups = question.id === 6
+    ? groupEnvironmentConditions(question.conditions)
+    : [{ title: "제시된 작업조건", items: entries }];
   return (
     <article
       className="scenario-card"
@@ -52,9 +47,13 @@ export default function MultipleChoiceQuestion({
           </section>
         ))}
       </div>
-      <fieldset className="answer-fieldset" disabled={disabled}>
+      <fieldset
+        className="answer-fieldset"
+        disabled={disabled}
+        aria-describedby={`psf-${question.id}-answer-hint`}
+      >
         <legend>위 조건을 종합하면 어느 수준에 해당하나요?</legend>
-        <p className="field-hint">
+        <p className="field-hint" id={`psf-${question.id}-answer-hint`}>
           본인의 판단에 가장 가까운 답변 하나를 선택해주세요.
         </p>
         <div className="answer-options">
